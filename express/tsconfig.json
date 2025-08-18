@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "ES2022",                 // modern JS features (Node 18+ supports this natively)
+    "lib": ["ES2022"],                  // only need the standard ES libs
+    "module": "CommonJS",               // Node still defaults to CJS unless you switch to ESM
+    "moduleResolution": "node",         // standard Node-style module resolution
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,            // enables `import express from "express";`
+
+    /* Directories */
+    "rootDir": "src",                   // TypeScript source files
+    "outDir": "dist",                   // compiled output
+    "resolveJsonModule": true,          // let you `import foo from "./foo.json"`
+
+    /* Strictness */
+    "strict": true,                     // all strict type-checking
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true                // faster builds, skip type-checking of deps
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
