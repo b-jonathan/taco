@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/b-jonathan/taco/internal/gh"
 	"github.com/google/go-github/v55/github"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
-	// "github.com/AlecAivazis/survey/v2"
 )
-
-type ctxKey int
-
-const ghClientKey ctxKey = iota
 
 func Execute() error {
 	_ = godotenv.Load()
@@ -37,84 +34,133 @@ func newRootCmd() *cobra.Command {
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
-		if ctx.Value(ghClientKey) != nil {
+		if gh.HasClient(ctx) {
 			return nil
 		}
-
 		token := os.Getenv("GITHUB_TOKEN")
 		if token == "" {
 			return fmt.Errorf("set GITHUB_TOKEN")
 		}
-
-		gh := ghClient(ctx, token)
-		gh.UserAgent = "taco-cli"
-		gh_ctx := context.WithValue(ctx, ghClientKey, gh)
-		cmd.SetContext(gh_ctx)
+		client := gh.NewClient(ctx, token)
+		client.UserAgent = "taco-cli"
+		cmd.SetContext(gh.WithContext(ctx, client))
 		return nil
 	}
-	cmd.AddCommand(newGHWhoAmICmd())
-	cmd.AddCommand(makeNewGHRepo())
+	cmd.AddCommand(initCmd())
 	return cmd
 }
 
-func ghClient(context context.Context, token string) *github.Client {
-	tokenSource := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
-	return github.NewClient(oauth2.NewClient(context, tokenSource))
-}
+func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
+	var params InitParams
 
-func ghFromContext(cmd *cobra.Command) *github.Client {
-	v := cmd.Context().Value(ghClientKey)
-	if v == nil {
-		// Root PersistentPreRunE should have set it
-		panic("github client missing in context")
+	if len(args) > 0 && args[0] != "" {
+		params.Name = args[0]
+	} else {
+		if !isTTY() {
+			return params, fmt.Errorf("name required in non-interactive mode")
+		}
+		name, err := createSurveyInput("Repository Name:", AskOpts{Help: "lowercase letters, numbers, dash, and underscore only", Validator: survey.Required})
+		if err != nil {
+			return params, err
+		}
+		params.Name = name
 	}
-	return v.(*github.Client)
+
+	if f := cmd.Flags().Lookup("private"); f != nil && f.Changed {
+		b, _ := strconv.ParseBool(f.Value.String())
+		params.Private = b
+	} else {
+		b, err := createSurveyConfirm("Make repository private?", AskOpts{
+			Default: false,
+		})
+		if err != nil && isTTY() {
+			return params, err
+		}
+		if err == nil {
+			params.Private = b
+		}
+	}
+
+	if v, _ := cmd.Flags().GetString("remote"); v != "" {
+		params.Remote = v
+	} else {
+		if isTTY() {
+			r, err := createSurveySelect("Remote URL type", []string{"ssh", "https"}, AskOpts{
+				Default:  "ssh",
+				PageSize: 2,
+			})
+			if err != nil {
+				return params, err
+			}
+			params.Remote = r
+		}
+	}
+
+	if v, _ := cmd.Flags().GetString("description"); v != "" {
+		params.Description = v
+	} else {
+		// optional field; allow empty in non-TTY
+		if isTTY() {
+			desc, err := createSurveyInput("Repository description", AskOpts{
+				Default: "",
+				Help:    "you can leave this empty",
+			})
+			if err != nil {
+				return params, err
+			}
+			params.Description = desc
+		}
+	}
+
+	return params, nil
 }
 
-func newGHWhoAmICmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "gh",
-		Short: "Show the authenticated GitHub user",
+func initCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init [name]",
+		Short: "Create repo and scaffold",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Println("Starting gh command")
-			client := ghFromContext(cmd)
-			log.Println("GitHub client initialized")
-
-			// Per-call timeout that still reuses the long-lived client
-			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
-			defer cancel()
-
-			user, _, err := client.Users.Get(ctx, "")
+			params, err := gatherInitParams(cmd, args)
 			if err != nil {
-				log.Printf("Error fetching user: %v", err)
 				return err
 			}
 
-			log.Printf("Successfully fetched user: %s", user.GetLogin())
-			fmt.Fprintln(cmd.OutOrStdout(), user.GetLogin())
+			fmt.Fprintf(cmd.OutOrStdout(), "Name=%s Private=%t Remote=%s Desc = %q\n", params.Name, params.Private, params.Remote, params.Description)
+
+			log.Println("Starting gh command")
+			gh := gh.MustFromContext(cmd.Context())
+			log.Println("GitHub client initialized")
+			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer cancel()
+
+			newRepo := &github.Repository{
+				Name:        github.String(params.Name),
+				Private:     github.Bool(params.Private),
+				Description: github.String(params.Description),
+			}
+
+			repo, _, err := gh.Repositories.Create(ctx, "", newRepo)
+			if err != nil {
+				return fmt.Errorf("create repo: %w", err)
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+			// Continue with local scaffold, git init, push, etc., using p.Remote to choose SSH or HTTPS
 			return nil
 		},
 	}
+	// Flags that feed into gatherInitParams
+	cmd.Flags().Bool("private", false, "Make the repository private")
+	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
+	cmd.Flags().String("description", "", "Repository description")
+	return cmd
 }
 
-func makeNewGHRepo() *cobra.Command {
-	return &cobra.Command{
-		Use:   "new",
-		Short: "Make new Github Repo",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Println("Starting gh command")
-			client := ghFromContext(cmd)
-			log.Println("GitHub client initialized")
-			newRepo := &github.Repository{
-				Name:    github.String(args[0]),
-				Private: github.Bool(false),
-			}
-			repo, _, err := client.Repositories.Create(cmd.Context(), "", newRepo)
-			if err != nil {
-				fmt.Println("Repo:", repo)
-			}
-
-			return nil
-		},
+func isTTY() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
 	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
