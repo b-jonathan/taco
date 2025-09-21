@@ -1,13 +1,23 @@
-package cli
+package prompt
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/AlecAivazis/survey/v2"
 )
 
-func createSurveyInput(message string, options AskOpts) (string, error) {
-	if !isTTY() && options.Default == nil {
+/* Helpers */
+func IsTTY() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func CreateSurveyInput(message string, options AskOpts) (string, error) {
+	if !IsTTY() && options.Default == nil {
 		return "", fmt.Errorf("TTY required or provide a default")
 	}
 
@@ -23,8 +33,8 @@ func createSurveyInput(message string, options AskOpts) (string, error) {
 	return askOneString(prompt, options)
 }
 
-func createSurveySelect(message string, choices []string, options AskOpts) (string, error) {
-	if !isTTY() && options.Default == nil {
+func CreateSurveySelect(message string, choices []string, options AskOpts) (string, error) {
+	if !IsTTY() && options.Default == nil {
 		return "", fmt.Errorf("TTY required or provide a default")
 	}
 
@@ -45,8 +55,8 @@ func createSurveySelect(message string, choices []string, options AskOpts) (stri
 	return askOneString(prompt, options)
 }
 
-func createSurveyMultiSelect(message string, choices []string, options AskOpts) ([]string, error) {
-	if !isTTY() && options.Default == nil {
+func CreateSurveyMultiSelect(message string, choices []string, options AskOpts) ([]string, error) {
+	if !IsTTY() && options.Default == nil {
 		return nil, fmt.Errorf("TTY required or provide a default")
 	}
 
@@ -67,8 +77,8 @@ func createSurveyMultiSelect(message string, choices []string, options AskOpts) 
 	return askManyString(prompt, options)
 }
 
-func createSurveyConfirm(message string, options AskOpts) (bool, error) {
-	if !isTTY() && options.Default == nil {
+func CreateSurveyConfirm(message string, options AskOpts) (bool, error) {
+	if !IsTTY() && options.Default == nil {
 		return false, fmt.Errorf("TTY required or provide a default")
 	}
 	prompt := &survey.Confirm{
