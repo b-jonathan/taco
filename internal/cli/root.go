@@ -139,9 +139,20 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			stack, _ := prompt.CreateSurveySelect("Choose a Stack:\n", []string{"express", "TODO"}, prompt.AskOpts{})
 			projectRoot := filepath.Join("..", params.Name)
-			if stack == "express" {
+			if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+				return fmt.Errorf("mkdir project root: %w", err)
+			}
+
+			frontendStack, _ := prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "TODO"}, prompt.AskOpts{})
+			if frontendStack == "NextJS" {
+				if err := runInitNextJS(cmd, projectRoot); err != nil {
+					return err
+				}
+			}
+
+			backendStack, _ := prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "TODO"}, prompt.AskOpts{})
+			if backendStack == "Express" {
 				if err := runInitExpress(cmd, projectRoot); err != nil {
 					return err
 				}
@@ -184,6 +195,54 @@ func initCmd() *cobra.Command {
 	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
 	cmd.Flags().String("description", "", "Repository description")
 	return cmd
+}
+
+func runInitNextJS(cmd *cobra.Command, projectRoot string) error {
+	ctx := cmd.Context()
+	frontendDir := filepath.Join(projectRoot, "frontend")
+	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
+	// 1) Scaffold Next.js in TS, without ESLint, noninteractive
+	// Requires an execx.Npx() helper on Windows; use "npx" if you don't have one yet.
+	nextFlags := []string{
+		"--yes",
+		"create-next-app@latest",
+		"frontend",
+		"--ts",
+		"--no-eslint",
+		"--app",
+		"--tailwind",
+		"--src-dir",
+		"--import-alias", "@/*",
+		"--use-npm",
+		"--disable-git",
+		"--turbopack",
+	}
+
+	if err := execx.RunCmd(ctx, projectRoot, "npx", nextFlags...); err != nil {
+		return fmt.Errorf("create-next-app: %w", err)
+	}
+
+	// Repo root gitignore entries for the frontend
+	gitignorePath := filepath.Join(projectRoot, ".gitignore")
+	if err := fsutil.EnsureFile(gitignorePath); err != nil {
+		return fmt.Errorf("ensure .gitignore: %w", err)
+	}
+	if err := fsutil.AppendUniqueLines(gitignorePath, []string{
+		"frontend/node_modules/",
+		"frontend/.next/",
+		"frontend/.env.local",
+	}); err != nil {
+		return err
+	}
+
+	// Create an env placeholder
+	if err := fsutil.EnsureFile(filepath.Join(frontendDir, ".env.local")); err != nil {
+		return fmt.Errorf("ensure .env.local: %w", err)
+	}
+
+	return nil
 }
 
 func runInitExpress(cmd *cobra.Command, projectRoot string) error {
