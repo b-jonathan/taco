@@ -134,6 +134,10 @@ func initCmd() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			stack := map[string]string{
+				"frontend": "",
+				"backend":  "",
+			}
 			params, err := gatherInitParams(cmd, args)
 			if err != nil {
 				return err
@@ -144,15 +148,16 @@ func initCmd() *cobra.Command {
 				return fmt.Errorf("mkdir project root: %w", err)
 			}
 
-			frontendStack, _ := prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "TODO"}, prompt.AskOpts{})
-			if frontendStack == "NextJS" {
+			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "None"}, prompt.AskOpts{})
+			if stack["frontend"] == "NextJS" {
+
 				if err := runInitNextJS(cmd, projectRoot); err != nil {
 					return err
 				}
 			}
 
-			backendStack, _ := prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "TODO"}, prompt.AskOpts{})
-			if backendStack == "Express" {
+			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
+			if stack["backend"] == "Express" {
 				if err := runInitExpress(cmd, projectRoot); err != nil {
 					return err
 				}
@@ -184,9 +189,19 @@ func initCmd() *cobra.Command {
 			}
 			log.Println("Committing and Pushing to Github...")
 			if err := git.InitAndPush(ctx, projectRoot, remoteURL, "chore: initial commit"); err != nil {
+				_, err := client.Repositories.Delete(ctx, "", *newRepo.Name)
 				return err
 			}
 			log.Println("Pushed:", repo.GetHTMLURL())
+
+			if stack["frontend"] != "None" && stack["backend"] != "None" {
+				// both set
+				log.Println("Setting Up Envs")
+				if err := initEnvs(projectRoot, stack); err != nil {
+					return err
+				}
+				log.Println("Envs set up.")
+			}
 			return nil
 		},
 	}
@@ -195,6 +210,40 @@ func initCmd() *cobra.Command {
 	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
 	cmd.Flags().String("description", "", "Repository description")
 	return cmd
+}
+
+func initEnvs(projectRoot string, stack map[string]string) error {
+	// frontend
+	if stack["frontend"] == "NextJS" {
+		path := filepath.Join(projectRoot, "frontend", ".env.local")
+		dir := filepath.Dir(path)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+		content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000	
+		`
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", path, err)
+		}
+	}
+
+	// backend
+	if stack["backend"] == "Express" {
+		path := filepath.Join(projectRoot, "backend", ".env")
+		dir := filepath.Dir(path)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+		content := `
+		PORT=4000
+		FRONTEND_ORIGIN=http://localhost:3000
+		`
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 func runInitNextJS(cmd *cobra.Command, projectRoot string) error {
@@ -242,6 +291,24 @@ func runInitNextJS(cmd *cobra.Command, projectRoot string) error {
 		return fmt.Errorf("ensure .env.local: %w", err)
 	}
 
+	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
+	pageContent := `
+		"use client";
+		import { useEffect, useState } from "react";
+		export default function Home() {
+		const [message, setMessage] = useState<string>("loading...");
+		useEffect(() => {
+			fetch("http://localhost:4000/")
+			.then((res) => res.text())
+			.then(setMessage)
+			.catch((err) => setMessage("error: " + err.message));
+		}, []);
+		return <div>{message}</div>;
+		}
+		`
+	if err := os.WriteFile(pagePath, []byte(pageContent), 0o644); err != nil {
+		return fmt.Errorf("write page.tsx: %w", err)
+	}
 	return nil
 }
 
@@ -299,10 +366,21 @@ func runInitExpress(cmd *cobra.Command, projectRoot string) error {
 		return fmt.Errorf("ensure index file: %w", err)
 	}
 	// src/index.ts
-	index := `import express from "express";
+	index := `
+		import "dotenv/config"; // auto-loads .env into process.env
+		import express from "express"; 
+		import cors from "cors"; // connects to frontend
 
 		const app = express();
 		const PORT = process.env.PORT || 3000;
+
+		app.use(express.json());
+
+		app.use(
+		cors({
+			origin: process.env.FRONTEND_ORIGIN,
+		})
+		);
 
 		app.get("/", (_req, res) => {
 		res.send("Hello, Express + TypeScript!");

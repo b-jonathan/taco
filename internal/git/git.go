@@ -26,6 +26,7 @@ func InitAndPush(ctx context.Context, projectRoot, remoteURL, commitMsg string) 
 	if err := execx.RunCmd(ctx, projectRoot, "git", "add", "."); err != nil {
 		return fmt.Errorf("git add .: %w", err)
 	}
+
 	if err := execx.RunCmd(ctx, projectRoot, "git", "commit", "-m", commitMsg); err != nil {
 		return fmt.Errorf("git commit: %w", err)
 	}
