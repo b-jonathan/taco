@@ -2,6 +2,8 @@ package fsutil
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -22,6 +24,20 @@ func EnsureFile(path string) error {
 		return err
 	}
 	return f.Close()
+}
+
+func WriteFile(path string, content []byte) error {
+	log.Printf("Ensuring file: %s", path)
+	if err := EnsureFile(path); err != nil {
+		return fmt.Errorf("ensure file: %w", err)
+	}
+	log.Println("Ensuring file complete")
+	log.Printf("Writing File: %s", path)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write %s file: %w", path, err)
+	}
+	log.Println("Writing file complete")
+	return nil
 }
 
 func AppendUniqueLines(path string, lines []string) error {

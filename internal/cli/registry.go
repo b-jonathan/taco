@@ -4,13 +4,15 @@ import (
 	"fmt"
 
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/b-jonathan/taco/internal/stacks/express"
+	"github.com/b-jonathan/taco/internal/stacks/nextjs"
 )
 
 type Stack = stacks.Stack
 
 var Registry = map[string]Stack{
-	"express": stacks.Express(),
-	"nextjs":  stacks.NextJS(),
+	"express": express.New(),
+	"nextjs":  nextjs.New(),
 }
 
 func GetFactory(key string) (stacks.Stack, error) {
