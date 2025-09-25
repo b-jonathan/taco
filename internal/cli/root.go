@@ -1,31 +1,22 @@
 package cli
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/gh"
-	"github.com/b-jonathan/taco/internal/git"
+	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/prompt"
-	"github.com/google/go-github/v55/github"
+	"github.com/b-jonathan/taco/internal/stacks"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
-
-type InitPackageParams struct {
-	Name    string
-	Main    string
-	Scripts map[string]string // merged into existing
-}
 
 func Execute() error {
 	_ = godotenv.Load()
@@ -134,6 +125,7 @@ func initCmd() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			ctx := cmd.Context()
 			stack := map[string]string{
 				"frontend": "",
 				"backend":  "",
@@ -149,66 +141,100 @@ func initCmd() *cobra.Command {
 			}
 
 			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "None"}, prompt.AskOpts{})
-			if stack["frontend"] == "NextJS" {
-
-				if err := runInitNextJS(cmd, projectRoot); err != nil {
-					return err
-				}
-			}
-
+			stack["frontend"] = strings.ToLower(stack["frontend"])
 			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
-			if stack["backend"] == "Express" {
-				if err := runInitExpress(cmd, projectRoot); err != nil {
+			stack["backend"] = strings.ToLower(stack["backend"])
+
+			frontend, err := GetFactory(stack["frontend"])
+			if err != nil {
+				return err
+			}
+			backend, err := GetFactory(stack["backend"])
+			if err != nil {
+				return err
+			}
+
+			opts := stacks.Options{
+				ProjectRoot:    projectRoot,
+				AppName:        params.Name,
+				FrontendOrigin: "http://localhost:3000",
+				BackendURL:     "http://localhost:4000",
+				Port:           4000,
+			}
+
+			// Init phase
+			if frontend != nil {
+				if err := frontend.Init(ctx, opts); err != nil {
 					return err
 				}
 			}
+			if backend != nil {
+				if err := backend.Init(ctx, opts); err != nil {
+					return err
+				}
+			}
+
+			// Generate phase
+			if frontend != nil {
+				if err := frontend.Generate(ctx, opts); err != nil {
+					return err
+				}
+			}
+			if backend != nil {
+				if err := backend.Generate(ctx, opts); err != nil {
+					return err
+				}
+			}
+
+			// Post phase
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Name=%s Private=%t Remote=%s Desc = %q\n", params.Name, params.Private, params.Remote, params.Description)
 
-			log.Println("Starting gh command")
-			client := gh.MustFromContext(cmd.Context())
-			log.Println("GitHub client initialized")
-			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-			defer cancel()
-
-			newRepo := &github.Repository{
-				Name:        github.String(params.Name),
-				Private:     github.Bool(params.Private),
-				Description: github.String(params.Description),
-			}
-
-			repo, _, err := client.Repositories.Create(ctx, "", newRepo)
-			if err != nil {
-				return fmt.Errorf("create repo: %w", err)
-			}
-
-			log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
-			remoteURL := repo.GetSSHURL()
-			if params.Remote == "https" {
-				remoteURL = repo.GetCloneURL()
-			}
-			log.Println("Committing and Pushing to Github...")
-			if err := git.InitAndPush(ctx, projectRoot, remoteURL, "chore: initial commit"); err != nil {
-				_, err := client.Repositories.Delete(ctx, "", *newRepo.Name)
-				return err
-			}
-			log.Println("Pushed:", repo.GetHTMLURL())
-
-			if stack["frontend"] != "None" && stack["backend"] != "None" {
-				// both set
-				log.Println("Setting Up Envs")
-				if err := initEnvs(projectRoot, stack); err != nil {
+			if frontend != nil && backend != nil {
+				if err := frontend.Post(ctx, opts); err != nil {
 					return err
 				}
-				log.Println("Envs set up.")
+				if err := backend.Post(ctx, opts); err != nil {
+					return err
+				}
 			}
+
+			// log.Println("Starting gh command")
+			// client := gh.MustFromContext(cmd.Context())
+			// log.Println("GitHub client initialized")
+			// ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			// defer cancel()
+
+			// newRepo := &github.Repository{
+			// 	Name:        github.String(params.Name),
+			// 	Private:     github.Bool(params.Private),
+			// 	Description: github.String(params.Description),
+			// }
+
+			// repo, _, err := client.Repositories.Create(ctx, "", newRepo)
+			// if err != nil {
+			// 	return fmt.Errorf("create repo: %w", err)
+			// }
+
+			// log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+			// remoteURL := repo.GetSSHURL()
+			// if params.Remote == "https" {
+			// 	remoteURL = repo.GetCloneURL()
+			// }
+			// log.Println("Committing and Pushing to Github...")
+			// if err := git.InitAndPush(ctx, projectRoot, remoteURL, "chore: initial commit"); err != nil {
+			// 	_, err := client.Repositories.Delete(ctx, "", *newRepo.Name)
+			// 	return err
+			// }
+			// log.Println("Pushed:", repo.GetHTMLURL())
+
 			return nil
 		},
 	}
 	// Flags that feed into gatherInitParams
-	cmd.Flags().Bool("private", false, "Make the repository private")
-	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
-	cmd.Flags().String("description", "", "Repository description")
+	// cmd.Flags().Bool("private", false, "Make the repository private")
+	// cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
+	// cmd.Flags().String("description", "", "Repository description")
 	return cmd
 }
 
@@ -400,9 +426,9 @@ func runInitExpress(cmd *cobra.Command, projectRoot string) error {
 	}
 
 	_ = fsutil.AppendUniqueLines(gitignorePath,
-		[]string{"backend/node_modules/", "backend/dist/", "backend/.env"})
+		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 
-	packageParams := InitPackageParams{
+	packageParams := nodepkg.InitPackageParams{
 		Name: "express",
 		Main: "dist/index.js",
 		Scripts: map[string]string{
@@ -411,38 +437,9 @@ func runInitExpress(cmd *cobra.Command, projectRoot string) error {
 			"start": "node dist/index.js",
 		}}
 
-	if err := initPackage(backendDir, packageParams); err != nil {
+	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
 
 	return nil
-}
-
-func initPackage(dir string, params InitPackageParams) error {
-	path := filepath.Join(dir, "package.json")
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	var pkg map[string]any
-	if err := json.Unmarshal(b, &pkg); err != nil {
-		return err
-	}
-	scripts, _ := pkg["scripts"].(map[string]any)
-	if scripts == nil {
-		scripts = map[string]any{}
-	}
-	for k, v := range params.Scripts {
-		scripts[k] = v
-	}
-	pkg["scripts"] = scripts
-
-	pkg["name"] = params.Name
-	pkg["main"] = params.Main
-
-	out, err := json.MarshalIndent(pkg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, out, 0o644)
 }
