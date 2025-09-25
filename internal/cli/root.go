@@ -1,21 +1,22 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/b-jonathan/taco/internal/execx"
-	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/gh"
-	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 func Execute() error {
@@ -124,7 +125,7 @@ func initCmd() *cobra.Command {
 		Short: "Create repo and scaffold",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-
+			start := time.Now()
 			ctx := cmd.Context()
 			stack := map[string]string{
 				"frontend": "",
@@ -162,41 +163,13 @@ func initCmd() *cobra.Command {
 				Port:           4000,
 			}
 
-			// Init phase
-			if frontend != nil {
-				if err := frontend.Init(ctx, opts); err != nil {
-					return err
-				}
-			}
-			if backend != nil {
-				if err := backend.Init(ctx, opts); err != nil {
-					return err
-				}
-			}
+			g, ctx := errgroup.WithContext(cmd.Context())
 
-			// Generate phase
-			if frontend != nil {
-				if err := frontend.Generate(ctx, opts); err != nil {
-					return err
-				}
-			}
-			if backend != nil {
-				if err := backend.Generate(ctx, opts); err != nil {
-					return err
-				}
-			}
+			g.Go(func() error { return runStackSequenceNoPost(ctx, "Frontend", frontend, opts) })
+			g.Go(func() error { return runStackSequenceNoPost(ctx, "Backend", backend, opts) })
 
-			// Post phase
-
-			fmt.Fprintf(cmd.OutOrStdout(), "Name=%s Private=%t Remote=%s Desc = %q\n", params.Name, params.Private, params.Remote, params.Description)
-
-			if frontend != nil && backend != nil {
-				if err := frontend.Post(ctx, opts); err != nil {
-					return err
-				}
-				if err := backend.Post(ctx, opts); err != nil {
-					return err
-				}
+			if err := g.Wait(); err != nil {
+				return err
 			}
 
 			// log.Println("Starting gh command")
@@ -227,219 +200,41 @@ func initCmd() *cobra.Command {
 			// 	return err
 			// }
 			// log.Println("Pushed:", repo.GetHTMLURL())
-
+			log.Println("Time Taken:", time.Since(start))
 			return nil
 		},
 	}
 	// Flags that feed into gatherInitParams
-	// cmd.Flags().Bool("private", false, "Make the repository private")
-	// cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
-	// cmd.Flags().String("description", "", "Repository description")
+	cmd.Flags().Bool("private", false, "Make the repository private")
+	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
+	cmd.Flags().String("description", "", "Repository description")
 	return cmd
 }
 
-func initEnvs(projectRoot string, stack map[string]string) error {
-	// frontend
-	if stack["frontend"] == "NextJS" {
-		path := filepath.Join(projectRoot, "frontend", ".env.local")
-		dir := filepath.Dir(path)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", dir, err)
-		}
-		content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000	
-		`
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", path, err)
-		}
-	}
-
-	// backend
-	if stack["backend"] == "Express" {
-		path := filepath.Join(projectRoot, "backend", ".env")
-		dir := filepath.Dir(path)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", dir, err)
-		}
-		content := `
-		PORT=4000
-		FRONTEND_ORIGIN=http://localhost:3000
-		`
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", path, err)
-		}
-	}
-
-	return nil
-}
-
-func runInitNextJS(cmd *cobra.Command, projectRoot string) error {
-	ctx := cmd.Context()
-	frontendDir := filepath.Join(projectRoot, "frontend")
-	if err := os.MkdirAll(projectRoot, 0o755); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-	// 1) Scaffold Next.js in TS, without ESLint, noninteractive
-	// Requires an execx.Npx() helper on Windows; use "npx" if you don't have one yet.
-	nextFlags := []string{
-		"--yes",
-		"create-next-app@latest",
-		"frontend",
-		"--ts",
-		"--no-eslint",
-		"--app",
-		"--tailwind",
-		"--src-dir",
-		"--import-alias", "@/*",
-		"--use-npm",
-		"--disable-git",
-		"--turbopack",
-	}
-
-	if err := execx.RunCmd(ctx, projectRoot, "npx", nextFlags...); err != nil {
-		return fmt.Errorf("create-next-app: %w", err)
-	}
-
-	// Repo root gitignore entries for the frontend
-	gitignorePath := filepath.Join(projectRoot, ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
-		return fmt.Errorf("ensure .gitignore: %w", err)
-	}
-	if err := fsutil.AppendUniqueLines(gitignorePath, []string{
-		"frontend/node_modules/",
-		"frontend/.next/",
-		"frontend/.env.local",
-	}); err != nil {
+func timedStep(name string, fn func() error) error {
+	start := time.Now()
+	err := fn()
+	dur := time.Since(start)
+	if err != nil {
+		log.Printf("%s failed in %s: %v", name, dur, err)
 		return err
 	}
-
-	// Create an env placeholder
-	if err := fsutil.EnsureFile(filepath.Join(frontendDir, ".env.local")); err != nil {
-		return fmt.Errorf("ensure .env.local: %w", err)
-	}
-
-	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
-	pageContent := `
-		"use client";
-		import { useEffect, useState } from "react";
-		export default function Home() {
-		const [message, setMessage] = useState<string>("loading...");
-		useEffect(() => {
-			fetch("http://localhost:4000/")
-			.then((res) => res.text())
-			.then(setMessage)
-			.catch((err) => setMessage("error: " + err.message));
-		}, []);
-		return <div>{message}</div>;
-		}
-		`
-	if err := os.WriteFile(pagePath, []byte(pageContent), 0o644); err != nil {
-		return fmt.Errorf("write page.tsx: %w", err)
-	}
+	log.Printf("%s finished in %s", name, dur)
 	return nil
 }
 
-func runInitExpress(cmd *cobra.Command, projectRoot string) error {
-	ctx := cmd.Context()
-	// <projectRoot>/backend/src
-	backendDir := filepath.Join(projectRoot, "backend")
-	srcDir := filepath.Join(backendDir, "src")
-
-	if err := os.MkdirAll(srcDir, 0o755); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+func runStackSequenceNoPost(ctx context.Context, label string, s stacks.Stack, opts stacks.Options) error {
+	if s == nil {
+		return nil
 	}
+	return timedStep(label+" total", func() error {
+		if err := timedStep(label+" Init", func() error { return s.Init(ctx, opts) }); err != nil {
+			return err
+		}
+		if err := timedStep(label+" Generate", func() error { return s.Generate(ctx, opts) }); err != nil {
+			return err
+		}
+		return timedStep(label+" Post", func() error { return s.Post(ctx, opts) })
 
-	if err := execx.RunCmd(ctx, backendDir, "npm", "init", "-y"); err != nil {
-		return fmt.Errorf("npm init: %w", err)
-	}
-
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "express", "cors", "dotenv"); err != nil {
-		return fmt.Errorf("npm install express: %w", err)
-	}
-
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "-D",
-		"typescript", "tsx", "@types/node", "@types/express", "@types/cors"); err != nil {
-		return fmt.Errorf("npm install dev deps: %w", err)
-	}
-
-	tsconfigPath := filepath.Join(backendDir, "tsconfig.json")
-	if err := fsutil.EnsureFile(tsconfigPath); err != nil {
-		return fmt.Errorf("ensure tsconfig file: %w", err)
-	}
-
-	tsconfig := `
-		{
-	"compilerOptions": {
-		"target": "es2022",
-		"module": "CommonJS",
-		"strict": true,
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"forceConsistentCasingInFileNames": true,
-		"outDir": "dist",
-		"rootDir": "src",
-		"noImplicitOverride": true,        
-	},
-	"include": ["src"],
-	"exclude": ["node_modules", "dist"]
-	}
-	`
-	if err := os.WriteFile(tsconfigPath, []byte(tsconfig), 0o644); err != nil {
-		return fmt.Errorf("write tsconfig.json: %w", err)
-	}
-
-	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	if err := fsutil.EnsureFile(indexPath); err != nil {
-		return fmt.Errorf("ensure index file: %w", err)
-	}
-	// src/index.ts
-	index := `
-		import "dotenv/config"; // auto-loads .env into process.env
-		import express from "express"; 
-		import cors from "cors"; // connects to frontend
-
-		const app = express();
-		const PORT = process.env.PORT || 3000;
-
-		app.use(express.json());
-
-		app.use(
-		cors({
-			origin: process.env.FRONTEND_ORIGIN,
-		})
-		);
-
-		app.get("/", (_req, res) => {
-		res.send("Hello, Express + TypeScript!");
-		});
-
-		app.listen(PORT, () => {
-		console.log("Server listening on http://localhost:" + PORT);
-		});
-		`
-
-	if err := os.WriteFile(indexPath, []byte(index), 0o644); err != nil {
-		return fmt.Errorf("write src/index.ts: %w", err)
-	}
-	gitignorePath := filepath.Join(projectRoot, ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
-		return fmt.Errorf("ensure gitignore file: %w", err)
-	}
-
-	_ = fsutil.AppendUniqueLines(gitignorePath,
-		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
-
-	packageParams := nodepkg.InitPackageParams{
-		Name: "express",
-		Main: "dist/index.js",
-		Scripts: map[string]string{
-			"dev":   "tsx watch src/index.ts",
-			"build": "tsc -p tsconfig.json",
-			"start": "node dist/index.js",
-		}}
-
-	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
-		return fmt.Errorf("write src/index.ts: %w", err)
-	}
-
-	return nil
+	})
 }

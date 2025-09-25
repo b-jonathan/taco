@@ -46,34 +46,38 @@ func (nextjs) Init(ctx context.Context, opts Options) error {
 }
 
 func (nextjs) Generate(ctx context.Context, opts Options) error {
-	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	// Repo root gitignore entries for the frontend
-	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
-		return fmt.Errorf("ensure .gitignore: %w", err)
-	}
-	if err := fsutil.AppendUniqueLines(gitignorePath, []string{
-		"frontend/node_modules/",
-		"frontend/.next/",
-		"frontend/.env.local",
-	}); err != nil {
-		return err
-	}
-
-	// Create an env placeholder
-	if err := fsutil.EnsureFile(filepath.Join(frontendDir, ".env.local")); err != nil {
-		return fmt.Errorf("ensure .env.local: %w", err)
-	}
+	// Doesnt rly have to do anything lol
 	return nil
 }
 
 func (nextjs) Post(ctx context.Context, opts Options) error {
+	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
+	if err := fsutil.WithFileLock(gitignorePath, func() error {
+		if err := fsutil.EnsureFile(gitignorePath); err != nil {
+			return err
+		}
+		_ = fsutil.AppendUniqueLines(gitignorePath, []string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
+		return nil
+	}); err != nil {
+		return fmt.Errorf("File Lock: %w", err)
+	}
 	// Create an env placeholder
+
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	if err := fsutil.EnsureFile(filepath.Join(frontendDir, ".env.local")); err != nil {
+	envPath := filepath.Join(frontendDir, ".env.local")
+	if err := fsutil.EnsureFile(envPath); err != nil {
 		return fmt.Errorf("ensure .env.local: %w", err)
 	}
 
+	dir := filepath.Dir(envPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", dir, err)
+	}
+	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000	
+		`
+	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", envPath, err)
+	}
 	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
 	pageContent := `
 		"use client";

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 func EnsureFile(path string) error {
@@ -34,4 +35,16 @@ func AppendUniqueLines(path string, lines []string) error {
 		}
 	}
 	return os.WriteFile(path, buf, 0o644)
+}
+
+// in a shared package or file
+var fileLocks sync.Map
+
+func WithFileLock(path string, fn func() error) error {
+	abs, _ := filepath.Abs(path)
+	v, _ := fileLocks.LoadOrStore(abs, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+	return fn()
 }

@@ -103,13 +103,6 @@ func (express) Generate(ctx context.Context, opts Options) error {
 	if err := os.WriteFile(indexPath, []byte(index), 0o644); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
-	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
-		return fmt.Errorf("ensure gitignore file: %w", err)
-	}
-
-	_ = fsutil.AppendUniqueLines(gitignorePath,
-		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 
 	packageParams := nodepkg.InitPackageParams{
 		Name: "express",
@@ -128,6 +121,13 @@ func (express) Generate(ctx context.Context, opts Options) error {
 }
 
 func (express) Post(ctx context.Context, opts Options) error {
+	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
+	if err := fsutil.EnsureFile(gitignorePath); err != nil {
+		return fmt.Errorf("ensure gitignore file: %w", err)
+	}
+
+	_ = fsutil.AppendUniqueLines(gitignorePath,
+		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 	path := filepath.Join(opts.ProjectRoot, "backend", ".env")
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
