@@ -23,7 +23,7 @@ func (nextjs) Type() string { return "frontend" }
 
 func (nextjs) Name() string { return "express" }
 
-func (nextjs) Init(ctx context.Context, opts Options) error {
+func (nextjs) Init(ctx context.Context, opts *Options) error {
 	if err := os.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
@@ -64,88 +64,43 @@ func (nextjs) Init(ctx context.Context, opts Options) error {
 	return nil
 }
 
-func (nextjs) Generate(ctx context.Context, opts Options) error {
+func (nextjs) Generate(ctx context.Context, opts *Options) error {
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
 	eslintPath := filepath.Join(frontendDir, "eslint.config.mjs")
-	eslint := `
-	// eslint.config.mjs
-	/* eslint-disable */
-	import js from '@eslint/js';
-	import globals from 'globals';
-	import ts from 'typescript-eslint';
-	import next from '@next/eslint-plugin-next';
-	import reactHooks from 'eslint-plugin-react-hooks';
-
-	export default [
-	{ ignores: ['node_modules/**','**/.next/**','**/.turbo/**','**/dist/**','**/build/**','**/coverage/**','**/.vercel/**','**/.cache/**'] },
-	js.configs.recommended,
-	...ts.configs.recommendedTypeChecked,
-	next.configs.recommended,
-	{
-		files: ['src/**/*.{ts,tsx,js,jsx}'],
-		languageOptions: {
-		globals: { ...globals.browser, ...globals.node },
-		parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname }
-		},
-		plugins: { 'react-hooks': reactHooks },
-		rules: {
-		'react-hooks/rules-of-hooks': 'error',
-		'react-hooks/exhaustive-deps': 'warn',
-		}
-	}
-	];
-	`
-	if err := fsutil.WriteFile(eslintPath, []byte(eslint)); err != nil {
+	eslintContent, err := fsutil.RenderTemplate("nextjs/eslint.config.mjs.tmpl")
+	if err != nil {
 		return err
 	}
-
+	eslint := fsutil.FileInfo{
+		Path:    eslintPath,
+		Content: eslintContent,
+	}
 	prettierPath := filepath.Join(frontendDir, ".prettierrc.json")
-	prettier := `
-	{
-	"tabWidth": 2,
-	"semi": true,
-	"singleQuote": false,
-	"trailingComma": "all",
-	"plugins": ["prettier-plugin-tailwindcss"]
-	}
-	`
-	if err := fsutil.WriteFile(prettierPath, []byte(prettier)); err != nil {
+	prettierContent, err := fsutil.RenderTemplate("nextjs/.prettierrc.json.tmpl")
+	if err != nil {
 		return err
+	}
+
+	prettier := fsutil.FileInfo{
+		Path:    prettierPath,
+		Content: prettierContent,
 	}
 
 	prettierIgnorePath := filepath.Join(frontendDir, ".prettierignore")
-	prettierIgnore := `
-	# Do not run Prettier on these paths. Customize as needed.
-	.next/
-	build/
-	dist/
-	out/
-	public/
-
-
-	# testing
-	/coverage
-
-	# misc
-	.DS_Store
-	.env.local
-	.env.development.local
-	.env.test.local
-	.env.production.local
-
-	npm-debug.log*
-	yarn-debug.log*
-	yarn-error.log*
-
-	# logs
-	/logs
-
-	`
-
-	if err := fsutil.WriteFile(prettierIgnorePath, []byte(prettierIgnore)); err != nil {
+	prettierIgnoreContent, err := fsutil.RenderTemplate("nextjs/.prettierignore.tmpl")
+	if err != nil {
 		return err
 	}
 
+	prettierIgnore := fsutil.FileInfo{
+		Path:    prettierIgnorePath,
+		Content: prettierIgnoreContent,
+	}
+	files := []fsutil.FileInfo{eslint, prettier, prettierIgnore}
+
+	if err := fsutil.WriteMultipleFiles(files); err != nil {
+		return fmt.Errorf("write files: %w", err)
+	}
 	packageParams := nodepkg.InitPackageParams{
 		Name: "express",
 		Main: "dist/index.js",
@@ -161,7 +116,7 @@ func (nextjs) Generate(ctx context.Context, opts Options) error {
 	return nil
 }
 
-func (nextjs) Post(ctx context.Context, opts Options) error {
+func (nextjs) Post(ctx context.Context, opts *Options) error {
 	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
 	if err := fsutil.WithFileLock(gitignorePath, func() error {
 		if err := fsutil.EnsureFile(gitignorePath); err != nil {
@@ -190,21 +145,16 @@ func (nextjs) Post(ctx context.Context, opts Options) error {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}
 	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
-	page := `
-		"use client";
-		import { useEffect, useState } from "react";
-		export default function Home() {
-		const [message, setMessage] = useState<string>("loading...");
-		useEffect(() => {
-			fetch("http://localhost:4000/")
-			.then((res) => res.text())
-			.then(setMessage)
-			.catch((err) => setMessage("error: " + err.message));
-		}, []);
-		return <div>{message}</div>;
-		}
-		`
-	if err := fsutil.WriteFile(pagePath, []byte(page)); err != nil {
+	pageContent, err := fsutil.RenderTemplate("nextjs/page.tsx.tmpl")
+	if err != nil {
+		return err
+	}
+	page := fsutil.FileInfo{
+		Path:    pagePath,
+		Content: pageContent,
+	}
+
+	if err := fsutil.WriteFile(page); err != nil {
 		return err
 	}
 	return nil

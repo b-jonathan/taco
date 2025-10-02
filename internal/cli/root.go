@@ -126,7 +126,7 @@ func initCmd() *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			start := time.Now()
-			ctx := cmd.Context()
+			rootCtx := cmd.Context()
 			stack := map[string]string{
 				"frontend": "",
 				"backend":  "",
@@ -145,7 +145,8 @@ func initCmd() *cobra.Command {
 			stack["frontend"] = strings.ToLower(stack["frontend"])
 			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
 			stack["backend"] = strings.ToLower(stack["backend"])
-
+			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
+			stack["database"] = strings.ToLower(stack["database"])
 			frontend, err := GetFactory(stack["frontend"])
 			if err != nil {
 				return err
@@ -155,18 +156,49 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			opts := stacks.Options{
-				ProjectRoot:    projectRoot,
-				AppName:        params.Name,
-				FrontendOrigin: "http://localhost:3000",
-				BackendURL:     "http://localhost:4000",
-				Port:           4000,
+			database, err := GetFactory(stack["database"])
+			if err != nil {
+				return err
 			}
 
-			g, ctx := errgroup.WithContext(cmd.Context())
+			opts := &stacks.Options{
+				ProjectRoot: projectRoot,
+				AppName:     params.Name,
+				Frontend:    "http://localhost:3000",
+				BackendURL:  "http://localhost:4000",
+				Port:        4000,
+			}
 
-			g.Go(func() error { return runStackSequenceNoPost(ctx, "Frontend", frontend, opts) })
-			g.Go(func() error { return runStackSequenceNoPost(ctx, "Backend", backend, opts) })
+			if err := runSelected(rootCtx, "Database", database, opts, []string{"init"}); err != nil {
+				return fmt.Errorf("run DB Init: %w", err)
+			}
+
+			g, ctx := errgroup.WithContext(rootCtx)
+
+			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
+			g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
+			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"seed"}) })
+
+			if err := g.Wait(); err != nil {
+				return err
+			}
+
+			if err := runSelected(rootCtx, "Database", database, opts, []string{"generate"}); err != nil {
+				return err
+			}
+			g, ctx = errgroup.WithContext(cmd.Context())
+
+			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"post"}) })
+			g.Go(func() error {
+				if err := runSelected(ctx, "Backend", backend, opts, []string{"post"}); err != nil {
+					return err
+				}
+				if err := runSelected(ctx, "Database", database, opts, []string{"post"}); err != nil {
+					return err
+				}
+				return nil
+			})
+			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
@@ -223,18 +255,69 @@ func timedStep(name string, fn func() error) error {
 	return nil
 }
 
-func runStackSequenceNoPost(ctx context.Context, label string, s stacks.Stack, opts stacks.Options) error {
+func stackSteps(
+	ctx context.Context,
+	label string,
+	s stacks.Stack,
+	opts *stacks.Options,
+	funcs []string,
+) ([]Step, error) {
 	if s == nil {
-		return nil
+		return nil, nil
 	}
-	return timedStep(label+" total", func() error {
-		if err := timedStep(label+" Init", func() error { return s.Init(ctx, opts) }); err != nil {
-			return err
-		}
-		if err := timedStep(label+" Generate", func() error { return s.Generate(ctx, opts) }); err != nil {
-			return err
-		}
-		return timedStep(label+" Post", func() error { return s.Post(ctx, opts) })
 
+	steps := make([]Step, 0, len(funcs))
+	// optional capability
+	seeder, hasSeed := any(s).(stacks.Seeder)
+
+	for _, name := range funcs {
+		switch strings.ToLower(strings.TrimSpace(name)) {
+		case "init":
+			steps = append(steps, Step{
+				Name: label + " Init",
+				Fn:   func() error { return s.Init(ctx, opts) },
+			})
+		case "generate":
+			steps = append(steps, Step{
+				Name: label + " Generate",
+				Fn:   func() error { return s.Generate(ctx, opts) },
+			})
+		case "post":
+			steps = append(steps, Step{
+				Name: label + " Post",
+				Fn:   func() error { return s.Post(ctx, opts) },
+			})
+		case "seed":
+			if !hasSeed {
+				return nil, fmt.Errorf("%s does not support seed", label)
+			}
+			// seeding is optional but explicit
+			steps = append(steps, Step{
+				Name: label + " Seed",
+				Fn:   func() error { return seeder.Seed(ctx, opts) },
+			})
+		default:
+			return nil, fmt.Errorf("unknown step %q (allowed: init, generate, post, seed)", name)
+		}
+	}
+	return steps, nil
+}
+
+func runSteps(label string, steps []Step) error {
+	return timedStep(label+" total", func() error {
+		for _, s := range steps {
+			if err := timedStep(s.Name, s.Fn); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
+}
+
+func runSelected(ctx context.Context, label string, s stacks.Stack, opts *stacks.Options, funcs []string) error {
+	steps, err := stackSteps(ctx, label, s, opts, funcs)
+	if err != nil {
+		return err
+	}
+	return runSteps(label, steps)
 }

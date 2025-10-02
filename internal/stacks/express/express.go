@@ -22,19 +22,14 @@ func New() Stack { return &express{} }
 func (express) Type() string { return "backend" }
 func (express) Name() string { return "express" }
 
-func (express) Init(ctx context.Context, opts Options) error {
+func (express) Init(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	srcDir := filepath.Join(backendDir, "src")
 
 	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
-	return nil
-}
 
-func (express) Generate(ctx context.Context, opts Options) error {
-
-	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	if err := execx.RunCmd(ctx, backendDir, "npm", "init", "-y"); err != nil {
 		return fmt.Errorf("npm init: %w", err)
 	}
@@ -59,139 +54,67 @@ func (express) Generate(ctx context.Context, opts Options) error {
 		return fmt.Errorf("npm install dev deps: %w", err)
 	}
 
+	return nil
+}
+
+func (express) Generate(ctx context.Context, opts *Options) error {
+	backendDir := filepath.Join(opts.ProjectRoot, "backend")
+	files := []fsutil.FileInfo{}
 	tsconfigPath := filepath.Join(backendDir, "tsconfig.json")
-	tsconfig := `
-		{
-	"compilerOptions": {
-		"target": "es2022",
-		"module": "CommonJS",
-		"strict": true,
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"forceConsistentCasingInFileNames": true,
-		"outDir": "dist",
-		"rootDir": "src",
-		"noImplicitOverride": true,        
-	},
-	"include": ["src"],
-	"exclude": ["node_modules", "dist"]
-	}
-	`
-	if err := fsutil.WriteFile(tsconfigPath, []byte(tsconfig)); err != nil {
+	tsconfigContent, err := fsutil.RenderTemplate("express/tsconfig.json.tmpl")
+	if err != nil {
 		return err
 	}
-
+	tsconfig := fsutil.FileInfo{
+		Path:    tsconfigPath,
+		Content: tsconfigContent,
+	}
 	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	// src/index.ts
-	index := `
-		import "dotenv/config"; // auto-loads .env into process.env
-		import express from "express"; 
-		import cors from "cors"; // connects to frontend
-
-		const app = express();
-		const PORT = process.env.PORT || 3000;
-
-		app.use(express.json());
-
-		app.use(
-		cors({
-			origin: process.env.FRONTEND_ORIGIN,
-		})
-		);
-
-		app.get("/", (_req, res) => {
-		res.send("Hello, Express + TypeScript!");
-		});
-
-		app.listen(PORT, () => {
-		console.log("Server listening on http://localhost:" + PORT);
-		});
-		`
-
-	if err := fsutil.WriteFile(indexPath, []byte(index)); err != nil {
+	indexContent, err := fsutil.RenderTemplate("express/src/index.ts.tmpl")
+	if err != nil {
 		return err
+	}
+
+	index := fsutil.FileInfo{
+		Path:    indexPath,
+		Content: indexContent,
 	}
 
 	eslintPath := filepath.Join(backendDir, "eslint.config.mjs")
-	eslint := `
-	// eslint.config.mjs
-	import js from '@eslint/js';
-	import ts from 'typescript-eslint';
-	import n from 'eslint-plugin-n';
-	import globals from 'globals';
-	import prettier from 'eslint-config-prettier';
+	eslintContent, err := fsutil.RenderTemplate("express/eslint.config.mjs.tmpl")
 
-	export default [
-	{ ignores: ["**/node_modules/**","**/.next/**","**/.turbo/**","**/dist/**","**/build/**","**/coverage/**","**/.vercel/**","**/.cache/**"] },
-	js.configs.recommended,
-	...ts.configs.recommendedTypeChecked,
-	n.configs['flat/recommended'],
-	{
-		files: ['src/**/*.{ts,tsx,js,cjs,mjs}'],
-		languageOptions: {
-		globals: { ...globals.node },
-		parserOptions: {
-			projectService: true,
-			tsconfigRootDir: import.meta.dirname,
-			ecmaVersion: 'latest',
-			sourceType: 'module'
-		}
-		}
-	},
-	prettier
-	];
-	`
-	if err := fsutil.WriteFile(eslintPath, []byte(eslint)); err != nil {
+	if err != nil {
 		return err
+	}
+	eslint := fsutil.FileInfo{
+		Path:    eslintPath,
+		Content: eslintContent,
 	}
 
 	prettierPath := filepath.Join(backendDir, ".prettierrc.json")
-	prettier := `
-	{
-	"tabWidth": 2,
-	"semi": true,
-	"singleQuote": false,
-	"trailingComma": "all"
-	}
-	`
-	if err := fsutil.WriteFile(prettierPath, []byte(prettier)); err != nil {
+	prettierContent, err := fsutil.RenderTemplate("express/.prettierrc.json.tmpl")
+	if err != nil {
 		return err
+	}
+	prettier := fsutil.FileInfo{
+		Path:    prettierPath,
+		Content: prettierContent,
 	}
 
 	prettierIgnorePath := filepath.Join(backendDir, ".prettierignore")
-	prettierIgnore := `
-	# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-	# dependencies
-	/node_modules
-	/.pnp
-	.pnp.js
-
-	# testing
-	/coverage
-
-	# production
-	/build
-
-	# misc
-	.DS_Store
-	.env.local
-	.env.development.local
-	.env.test.local
-	.env.production.local
-
-	npm-debug.log*
-	yarn-debug.log*
-	yarn-error.log*
-
-	# logs
-	/logs
-
-	/dist
-	`
-
-	if err := fsutil.WriteFile(prettierIgnorePath, []byte(prettierIgnore)); err != nil {
+	prettierIgnoreContent, err := fsutil.RenderTemplate("express/.prettierignore.tmpl")
+	if err != nil {
 		return err
+	}
+
+	prettierIgnore := fsutil.FileInfo{
+		Path:    prettierIgnorePath,
+		Content: prettierIgnoreContent,
+	}
+	files = append(files, tsconfig, index, eslint, prettier, prettierIgnore)
+
+	if err := fsutil.WriteMultipleFiles(files); err != nil {
+		return fmt.Errorf("write files: %w", err)
 	}
 
 	packageParams := nodepkg.InitPackageParams{
@@ -208,11 +131,11 @@ func (express) Generate(ctx context.Context, opts Options) error {
 	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
-
 	return nil
+
 }
 
-func (express) Post(ctx context.Context, opts Options) error {
+func (express) Post(ctx context.Context, opts *Options) error {
 	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
 	if err := fsutil.EnsureFile(gitignorePath); err != nil {
 		return fmt.Errorf("ensure gitignore file: %w", err)

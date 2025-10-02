@@ -3,10 +3,10 @@ package fsutil
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"text/template"
 )
 
 func EnsureFile(path string) error {
@@ -26,20 +26,29 @@ func EnsureFile(path string) error {
 	return f.Close()
 }
 
-func WriteFile(path string, content []byte) error {
-	log.Printf("Ensuring file: %s", path)
-	if err := EnsureFile(path); err != nil {
-		return fmt.Errorf("ensure file: %w", err)
+func WriteFile(file FileInfo) error {
+	filename := filepath.Base(file.Path)
+	// log.Printf("Ensuring file: %s", path)
+	if err := EnsureFile(file.Path); err != nil {
+		return fmt.Errorf("ensure %s file: %w", filename, err)
 	}
-	log.Println("Ensuring file complete")
-	log.Printf("Writing File: %s", path)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return fmt.Errorf("write %s file: %w", path, err)
+	// log.Println("Ensuring file complete")
+	// log.Printf("Writing File: %s", path)
+	if err := os.WriteFile(file.Path, file.Content, 0o644); err != nil {
+		return fmt.Errorf("write %s file: %w", filename, err)
 	}
-	log.Println("Writing file complete")
+	// log.Println("Writing file complete")
 	return nil
 }
 
+func WriteMultipleFiles(files []FileInfo) error {
+	for _, file := range files {
+		if err := WriteFile(file); err != nil {
+			return fmt.Errorf("write file %s: %w", file.Path, err)
+		}
+	}
+	return nil
+}
 func AppendUniqueLines(path string, lines []string) error {
 	buf, _ := os.ReadFile(path)
 	for _, line := range lines {
@@ -63,4 +72,17 @@ func WithFileLock(path string, fn func() error) error {
 	mu.Lock()
 	defer mu.Unlock()
 	return fn()
+}
+
+func RenderTemplate(tmplPath string) ([]byte, error) {
+	tmplPath = filepath.Join("internal", "stacks", "templates", tmplPath)
+	tmpl, err := template.ParseFiles(tmplPath)
+	if err != nil {
+		return nil, fmt.Errorf("parse template %s: %w", tmplPath, err)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, nil); err != nil {
+		return nil, fmt.Errorf("execute template %s: %w", tmplPath, err)
+	}
+	return buf.Bytes(), nil
 }

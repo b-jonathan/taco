@@ -1,0 +1,25 @@
+import "dotenv/config"; // auto-loads .env into process.env
+import express from "express"; 
+import cors from "cors"; // connects to frontend
+// [DATABASE IMPORT]
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.use(
+cors({
+    origin: process.env.FRONTEND_ORIGIN,
+})
+);
+
+app.get("/", (_req, res) => {
+res.send("Hello, Express + TypeScript!");
+});
+
+// [DATABASE ROUTE]
+
+app.listen(PORT, () => {
+console.log("Server listening on http://localhost:" + PORT);
+});

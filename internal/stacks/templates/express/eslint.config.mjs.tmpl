@@ -1,0 +1,26 @@
+// eslint.config.mjs
+import js from '@eslint/js';
+import ts from 'typescript-eslint';
+import n from 'eslint-plugin-n';
+import globals from 'globals';
+import prettier from 'eslint-config-prettier';
+
+export default [
+{ ignores: ["**/node_modules/**","**/.next/**","**/.turbo/**","**/dist/**","**/build/**","**/coverage/**","**/.vercel/**","**/.cache/**"] },
+js.configs.recommended,
+...ts.configs.recommendedTypeChecked,
+n.configs['flat/recommended'],
+{
+    files: ['src/**/*.{ts,tsx,js,cjs,mjs}'],
+    languageOptions: {
+    globals: { ...globals.node },
+    parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+        ecmaVersion: 'latest',
+        sourceType: 'module'
+    }
+    }
+},
+prettier
+];
