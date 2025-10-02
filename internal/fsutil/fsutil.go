@@ -49,6 +49,7 @@ func WriteMultipleFiles(files []FileInfo) error {
 	}
 	return nil
 }
+
 func AppendUniqueLines(path string, lines []string) error {
 	buf, _ := os.ReadFile(path)
 	for _, line := range lines {

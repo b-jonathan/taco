@@ -127,10 +127,7 @@ func initCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			start := time.Now()
 			rootCtx := cmd.Context()
-			stack := map[string]string{
-				"frontend": "",
-				"backend":  "",
-			}
+			stack := map[string]string{}
 			params, err := gatherInitParams(cmd, args)
 			if err != nil {
 				return err
