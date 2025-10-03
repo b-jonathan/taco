@@ -38,4 +38,5 @@ jobs:
       # run the scan against your dependency list
       - name: Run OSV Scan
         run: |
-          $(go env GOPATH)/bin/osv-scanner --lockfile=go.list
+          SCANNER="$(go env GOPATH)/bin/osv-scanner"
+          $SCANNER --recursive . --skip-git --format tabl
