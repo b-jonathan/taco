@@ -1,7 +1,7 @@
 # taco
 
 ````markdown
-# Go Project
+# Go Project for taco
 
 ## Prerequisites
 - Go 1.22+  
