@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.23.x', cache: true }
+        with: { go-version: '1.25.x', cache: true }
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -28,8 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.23.x', cache: true }
+        with: { go-version: '1.25.x', cache: true }
       - run: go list -m -json all > go.list
-      - uses: google/osv-scanner-action@v1
+      - uses: google/osv-scanner-action@v2
         with:
           scan-args: '--lockfile=go.list'
