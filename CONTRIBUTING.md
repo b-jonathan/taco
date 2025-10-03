@@ -55,6 +55,25 @@ make build
 
 ---
 
+## Issue Labels
+
+When opening issues or reviewing pull requests, please apply the most relevant label(s) to help maintainers triage and prioritize them. Here’s a basic guide:
+
+| Label | When to Use |
+|-------|-------------|
+| `bug` | A reproducible error, crash, or incorrect behavior in Taco. |
+| `feature` | A new capability or enhancement that does not exist yet. |
+| `enhancement` | Improvements to existing features, performance, or developer experience. |
+| `docs` | Documentation updates, typos, or README/CONTRIBUTING changes. |
+| `refactor` | Code cleanup or restructuring without changing behavior. |
+| `ci` | Issues related to GitHub Actions, testing, or build pipelines. |
+| `good first issue` | Small, well-scoped issues suitable for new contributors. |
+
+**Tips:**
+- Most issues should have **one primary label**.
+- If an issue touches multiple areas (e.g., a feature that also needs docs), feel free to add more than one.
+- PRs should ideally match the label of the issue they close.
+  
 ## Adding a New Stack
 
 Taco’s stack system is **registry-based**, meaning each stack is a self-contained module registered into the CLI.
