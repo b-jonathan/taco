@@ -1,0 +1,42 @@
+name: security
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.25.x', cache: true }
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: go
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          { go-version: '1.25.x', cache: true }
+      - run: go list -m -json all > go.list
+
+      # install osv-scanner CLI directly from source
+      - name: Install OSV Scanner
+        run: go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+
+      # run the scan against your dependency list
+      - name: Run OSV Scan
+        run: |
+          SCANNER="$(go env GOPATH)/bin/osv-scanner"
+          $SCANNER --recursive --skip-git . || true
