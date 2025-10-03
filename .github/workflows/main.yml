@@ -1,0 +1,18 @@
+name: security
+on:
+  pull_request:
+  schedule:
+    - cron: '0 7 * * *'
+jobs:
+  codeql:
+    uses: github/codeql-action/.github/workflows/codeql.yml@v3
+    with: { languages: go }
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.23.x', cache: true }
+      - run: go list -m -json all > go.list
+      - uses: google/osv-scanner-action@v1
+        with: { scan-args: '--lockfile=go.list' }
