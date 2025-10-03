@@ -39,4 +39,4 @@ jobs:
       - name: Run OSV Scan
         run: |
           SCANNER="$(go env GOPATH)/bin/osv-scanner"
-          $SCANNER --recursive --skip-git . --format table
+          $SCANNER --recursive --skip-git .
