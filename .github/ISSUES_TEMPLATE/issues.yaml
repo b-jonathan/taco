@@ -1,0 +1,103 @@
+# .github/ISSUE_TEMPLATE/issue.yml
+name: Issue
+description: Report a bug, request a feature, propose a stack, or file a refactor or docs change
+title: "[<Type>] <short summary>"
+labels: ["needs:triage"]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - Bug
+        - Feature
+        - Stack proposal
+        - Refactor
+        - Docs
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is the goal or problem in one paragraph
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: For bugs only. Minimal steps that always reproduce
+      placeholder: |
+        1. Run taco init
+        2. Choose Next.js and Express
+        3. Observe error
+    validations:
+      required: false
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Version and platform. Example v0.4.2 on Windows 11 x64
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution or approach
+      description: For features, stacks, refactors, or docs changes
+    validations:
+      required: false
+
+  - type: textarea
+    id: manifest
+    attributes:
+      label: Stack manifest sketch
+      description: For stack proposals. Include provides, requires, conflicts, engines, files_touched, checks, migrations
+      render: yaml
+      placeholder: |
+        name: nextjs
+        version: 15.0.2
+        provides: [web-frontend, server-ssr]
+        requires:
+          engines:
+            node: ">=18.18 <23"
+        conflicts: []
+        files_touched: ["package.json", "next.config.ts"]
+        post_install_checks: ["node -v"]
+        migrations: []
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this to be complete
+      placeholder: |
+        - [ ] Command exits zero
+        - [ ] New files generated
+        - [ ] Docs updated
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Self checks
+      options:
+        - label: I searched existing issues
+        - label: I can reproduce on the latest release
+        - label: I can provide a minimal reproduction if requested
