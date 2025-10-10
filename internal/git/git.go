@@ -15,7 +15,6 @@ func InitAndPush(ctx context.Context, projectRoot, remoteURL, commitMsg string) 
 		if err := execx.RunCmd(ctx, projectRoot, "git", "init"); err != nil {
 			return fmt.Errorf("git init: %w", err)
 		}
-		test := nil
 	}
 
 	// Set default branch to main
