@@ -6,6 +6,7 @@ on:
 
 jobs:
   codeql:
+    name: codeql
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,6 +24,7 @@ jobs:
       - name: Analyze
         uses: github/codeql-action/analyze@v3
   osv-scan:
+    name: osv-scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
