@@ -1,8 +1,8 @@
 name: security
 on:
   pull_request:
-  push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   codeql:
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: '1.25.x', cache: true }
+        with: { go-version: "1.25.x", cache: true }
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -29,8 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with:
-          { go-version: '1.25.x', cache: true }
+        with: { go-version: "1.25.x", cache: true }
       - run: go list -m -json all > go.list
 
       # install osv-scanner CLI directly from source
