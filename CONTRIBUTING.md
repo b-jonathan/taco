@@ -38,7 +38,7 @@ make lint
 
 ### Build the CLI:
 ```bash
-go build -o bin/taco ./cmd/taco
+go build -o taco ./cmd/taco
 ```
 or
 ```bash
