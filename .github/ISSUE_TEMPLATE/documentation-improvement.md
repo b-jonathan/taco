@@ -1,7 +1,7 @@
 ---
 name: Documentation Improvement
 about: Report wrong or missing documentation
-title: ''
+title: '[DOC]'
 labels: documentation
 assignees: ''
 
