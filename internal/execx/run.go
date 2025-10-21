@@ -7,6 +7,7 @@ import (
 	"os/exec"
 )
 
+// TODO: Make a helper so that you can run whole strings instead of a bunch of strings.
 func RunCmd(ctx context.Context, dir, name string, args ...string) error {
 	c := exec.CommandContext(ctx, name, args...)
 	c.Dir = dir

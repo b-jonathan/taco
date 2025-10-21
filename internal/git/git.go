@@ -9,6 +9,7 @@ import (
 	"github.com/b-jonathan/taco/internal/execx"
 )
 
+// TODO: There is absolutely no reason for init and push to be in one function, gonna have to refactor this for sure
 func InitAndPush(ctx context.Context, projectRoot, remoteURL, commitMsg string) error {
 	// If already a repo, skip init
 	if _, err := os.Stat(filepath.Join(projectRoot, ".git")); os.IsNotExist(err) {

@@ -9,6 +9,7 @@ import (
 	"text/template"
 )
 
+// TODO: Some of these were completely vibe coded, just need to refactor a bit to make more consistent
 func EnsureFile(path string) error {
 	// Create parent directories if needed.
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

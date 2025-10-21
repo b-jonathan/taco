@@ -37,7 +37,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "express", "cors", "dotenv"); err != nil {
 		return fmt.Errorf("npm install express: %w", err)
 	}
-
+	//TODO: Prob can Refactor this somewhere, like keeping track of depencies to be installed, not urgent tho
 	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "-D",
 		"typescript", "tsx",
 		"@types/node",

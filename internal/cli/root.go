@@ -138,12 +138,17 @@ func initCmd() *cobra.Command {
 				return fmt.Errorf("mkdir project root: %w", err)
 			}
 
+			//TODO: We're gonna have to refactor this into a "dependency-style" selection, so only db's supported by chosen backend are seen
+
 			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "None"}, prompt.AskOpts{})
 			stack["frontend"] = strings.ToLower(stack["frontend"])
+
 			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
 			stack["backend"] = strings.ToLower(stack["backend"])
+
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
+
 			frontend, err := GetFactory(stack["frontend"])
 			if err != nil {
 				return err
@@ -201,6 +206,9 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
+			// TODO: We're gonna have to add a functionality to "optionally" make github repo
+			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
+
 			// log.Println("Starting gh command")
 			// client := gh.MustFromContext(cmd.Context())
 			// log.Println("GitHub client initialized")
@@ -240,6 +248,7 @@ func initCmd() *cobra.Command {
 	return cmd
 }
 
+// TODO: We'll prob have to add this to like a middleware/logging package helper lol
 func timedStep(name string, fn func() error) error {
 	start := time.Now()
 	err := fn()

@@ -8,6 +8,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// TODO: This whole file is p vibe coded, i think it works p well tho
 type ctxKey struct{}
 
 var ghClientKey = ctxKey{}
