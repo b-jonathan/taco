@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
@@ -30,27 +31,33 @@ func (express) Init(ctx context.Context, opts *Options) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := execx.RunCmd(ctx, backendDir, "npm", "init", "-y"); err != nil {
+	if err := execx.RunCmd(ctx, backendDir, "npm init -y"); err != nil {
 		return fmt.Errorf("npm init: %w", err)
 	}
-
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "express", "cors", "dotenv"); err != nil {
+	dependencies := []string{
+		"express",
+		"cors",
+		"dotenv",
+	}
+	if err := execx.RunCmd(ctx, backendDir, "npm install "+strings.Join(dependencies, " ")); err != nil {
 		return fmt.Errorf("npm install express: %w", err)
 	}
-	//TODO: Prob can Refactor this somewhere, like keeping track of depencies to be installed, not urgent tho
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "-D",
-		"typescript", "tsx",
+	devDependencies := []string{
+		"typescript",
+		"ts-node",
 		"@types/node",
 		"@types/express",
 		"@types/cors",
 		"eslint",
 		"@eslint/js",
 		"globals",
-		"typescript",
 		"typescript-eslint",
 		"eslint-plugin-n",
 		"eslint-config-prettier",
-		"prettier"); err != nil {
+		"prettier",
+	}
+	//TODO: Prob can Refactor this somewhere, like keeping track of depencies to be installed, not urgent tho
+	if err := execx.RunCmd(ctx, backendDir, "npm install -D "+strings.Join(devDependencies, " ")); err != nil {
 		return fmt.Errorf("npm install dev deps: %w", err)
 	}
 

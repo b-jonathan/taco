@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
@@ -44,11 +45,13 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 		"--turbopack",
 	}
 
-	if err := execx.RunCmd(ctx, opts.ProjectRoot, "npx", nextFlags...); err != nil {
+	//TODO: This is a patch fix, prob need a helper in general to parse []string to string
+
+	if err := execx.RunCmd(ctx, opts.ProjectRoot, "npx "+strings.Join(nextFlags, " ")); err != nil {
 		return fmt.Errorf("create-next-app: %w", err)
 	}
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	if err := execx.RunCmd(ctx, frontendDir, "npm", "install", "-D",
+	frontendDeps := []string{
 		"eslint",
 		"@eslint/js",
 		"globals",
@@ -58,7 +61,9 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 		"eslint-plugin-react-hooks",
 		"eslint-config-prettier",
 		"prettier",
-		"prettier-plugin-tailwindcss"); err != nil {
+		"prettier-plugin-tailwindcss",
+	}
+	if err := execx.RunCmd(ctx, frontendDir, "npm install -D "+strings.Join(frontendDeps, " ")); err != nil {
 		return fmt.Errorf("npm install dev deps: %w", err)
 	}
 	return nil
