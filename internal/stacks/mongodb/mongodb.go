@@ -134,10 +134,10 @@ func (mongodb) Init(ctx context.Context, opts *Options) error {
 
 func (mongodb) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "mongodb"); err != nil {
+	if err := execx.RunCmd(ctx, backendDir, "npm install mongodb"); err != nil {
 		return fmt.Errorf("npm install mongodb: %w", err)
 	}
-	if err := execx.RunCmd(ctx, backendDir, "npm", "install", "-D", "@types/mongodb"); err != nil {
+	if err := execx.RunCmd(ctx, backendDir, "npm install -D @types/mongodb"); err != nil {
 		return fmt.Errorf("npm install dev: %w", err)
 	}
 	clientPath := filepath.Join(backendDir, "src", "db", "client.ts")
