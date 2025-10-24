@@ -32,7 +32,7 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 	// Requires an execx.Npx() helper on Windows; use "npx" if you don't have one yet.
 	nextFlags := []string{
 		"--yes",
-		"create-next-app@latest",
+		"create-next-app@16.0.0",
 		"frontend",
 		"--ts",
 		"--no-eslint",
@@ -43,6 +43,7 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 		"--use-npm",
 		"--disable-git",
 		"--turbopack",
+		"--no-react-compiler",
 	}
 
 	//TODO: This is a patch fix, prob need a helper in general to parse []string to string
