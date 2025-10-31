@@ -5,6 +5,7 @@ import (
 
 	"github.com/b-jonathan/taco/internal/stacks"
 	"github.com/b-jonathan/taco/internal/stacks/express"
+	"github.com/b-jonathan/taco/internal/stacks/firebase"
 	"github.com/b-jonathan/taco/internal/stacks/mongodb"
 	"github.com/b-jonathan/taco/internal/stacks/nextjs"
 )
