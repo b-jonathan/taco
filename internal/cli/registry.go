@@ -12,9 +12,10 @@ import (
 type Stack = stacks.Stack
 
 var Registry = map[string]Stack{
-	"express": express.New(),
-	"nextjs":  nextjs.New(),
-	"mongodb": mongodb.New(),
+	"express":  express.New(),
+	"nextjs":   nextjs.New(),
+	"mongodb":  mongodb.New(),
+	"firebase": firebase.New(), // TODO: implement Firebase stack
 }
 
 func GetFactory(key string) (stacks.Stack, error) {

@@ -149,6 +149,9 @@ func initCmd() *cobra.Command {
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
 
+			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase, None"}, prompt.AskOpts{})
+			stack["auth"] = strings.ToLower(stack["auth"])
+
 			frontend, err := GetFactory(stack["frontend"])
 			if err != nil {
 				return err
@@ -171,6 +174,7 @@ func initCmd() *cobra.Command {
 				Port:        4000,
 			}
 
+			// This is core core
 			if err := runSelected(rootCtx, "Database", database, opts, []string{"init"}); err != nil {
 				return fmt.Errorf("run DB Init: %w", err)
 			}
@@ -200,11 +204,13 @@ func initCmd() *cobra.Command {
 				}
 				return nil
 			})
-			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
+			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
 			}
+
+			// This is additional templates
 
 			// TODO: We're gonna have to add a functionality to "optionally" make github repo
 			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
