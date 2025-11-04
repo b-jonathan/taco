@@ -3,9 +3,16 @@ package prompt
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/AlecAivazis/survey/v2"
 )
+
+var TermLock sync.Mutex
+
+// Lock and unlock helpers if needed elsewhere
+func Lock()   { TermLock.Lock() }
+func Unlock() { TermLock.Unlock() }
 
 /* Helpers */
 func IsTTY() bool {
@@ -92,18 +99,24 @@ func CreateSurveyConfirm(message string, options AskOpts) (bool, error) {
 
 // Internal helpers
 func askOneString(p survey.Prompt, opts AskOpts) (string, error) {
+	TermLock.Lock()
+	defer TermLock.Unlock()
 	var out string
 	err := survey.AskOne(p, &out, askOpts(opts)...)
 	return out, err
 }
 
 func askOneBool(p survey.Prompt, opts AskOpts) (bool, error) {
+	TermLock.Lock()
+	defer TermLock.Unlock()
 	var out bool
 	err := survey.AskOne(p, &out, askOpts(opts)...)
 	return out, err
 }
 
 func askManyString(p survey.Prompt, opts AskOpts) ([]string, error) {
+	TermLock.Lock()
+	defer TermLock.Unlock()
 	var out []string
 	err := survey.AskOne(p, &out, askOpts(opts)...)
 	return out, err

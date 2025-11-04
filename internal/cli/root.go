@@ -149,7 +149,7 @@ func initCmd() *cobra.Command {
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
 
-			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase, None"}, prompt.AskOpts{})
+			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
 			stack["auth"] = strings.ToLower(stack["auth"])
 
 			frontend, err := GetFactory(stack["frontend"])
@@ -166,6 +166,11 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
+			auth, err := GetFactory(stack["auth"])
+			if err != nil {
+				return err
+			}
+
 			opts := &stacks.Options{
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
@@ -175,17 +180,19 @@ func initCmd() *cobra.Command {
 			}
 
 			// This is core core
-			if err := runSelected(rootCtx, "Database", database, opts, []string{"init"}); err != nil {
-				return fmt.Errorf("run DB Init: %w", err)
-			}
 
 			g, ctx := errgroup.WithContext(rootCtx)
 
 			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
 			g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
-			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"seed"}) })
+			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"init", "seed"}) })
+			g.Go(func() error { return runSelected(ctx, "Auth", auth, opts, []string{"init"}) })
 
 			if err := g.Wait(); err != nil {
+				return err
+			}
+
+			if err := runSelected(rootCtx, "Auth", auth, opts, []string{"generate"}); err != nil {
 				return err
 			}
 
@@ -259,6 +266,8 @@ func timedStep(name string, fn func() error) error {
 	start := time.Now()
 	err := fn()
 	dur := time.Since(start)
+	prompt.TermLock.Lock()
+	defer prompt.TermLock.Unlock()
 	if err != nil {
 		log.Printf("%s failed in %s: %v", name, dur, err)
 		return err
