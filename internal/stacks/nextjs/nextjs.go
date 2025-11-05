@@ -123,16 +123,6 @@ func (nextjs) Generate(ctx context.Context, opts *Options) error {
 }
 
 func (nextjs) Post(ctx context.Context, opts *Options) error {
-	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
-	if err := fsutil.WithFileLock(gitignorePath, func() error {
-		if err := fsutil.EnsureFile(gitignorePath); err != nil {
-			return err
-		}
-		_ = fsutil.AppendUniqueLines(gitignorePath, []string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
-		return nil
-	}); err != nil {
-		return fmt.Errorf("file Lock: %w", err)
-	}
 	// Create an env placeholder
 
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
