@@ -1,0 +1,20 @@
+"use client";
+import React from "react";
+import { useAuth } from "@/context/authContext";
+
+const Home: React.FC = () => {
+  const { currentUser, loading } = useAuth();
+
+  if (loading) return <div className="pt-14">Loading...</div>;
+  if (!currentUser) return <div className="pt-14">You are not signed in.</div>;
+
+  const display = currentUser.displayName ?? currentUser.email ?? "User";
+
+  return (
+    <div className="pt-14 text-2xl font-bold">
+      Hello {display}, you are now logged in.
+    </div>
+  );
+};
+
+export default Home;

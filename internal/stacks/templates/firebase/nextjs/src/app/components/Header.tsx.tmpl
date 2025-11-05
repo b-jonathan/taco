@@ -1,0 +1,51 @@
+"use client";
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/authContext";
+import { doSignOut } from "@/firebase/auth";
+
+const Header: React.FC = () => {
+  const router = useRouter();
+  const { userLoggedIn } = useAuth();
+
+  const handleSignOut = () => {
+    // call sign out and navigate after completion without returning a promise to the event
+    void (async () => {
+      try {
+        await doSignOut();
+        router.replace("/login");
+      } catch (error) {
+        // Log error for debugging, then navigate to login
+        console.error(error);
+        router.replace("/login");
+      }
+    })();
+  };
+
+  return (
+    <nav className="fixed top-0 left-0 z-20 flex h-12 w-full flex-row place-content-center items-center gap-x-2 border-b bg-gray-200">
+      {userLoggedIn ? (
+        <>
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-blue-600 underline"
+          >
+            Logout
+          </button>
+        </>
+      ) : (
+        <>
+          <Link className="text-sm text-blue-600 underline" href="/login">
+            Login
+          </Link>
+          <Link className="text-sm text-blue-600 underline" href="/register">
+            Register New Account
+          </Link>
+        </>
+      )}
+    </nav>
+  );
+};
+
+export default Header;

@@ -142,23 +142,27 @@ func initCmd() *cobra.Command {
 
 			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "None"}, prompt.AskOpts{})
 			stack["frontend"] = strings.ToLower(stack["frontend"])
-
-			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
-			stack["backend"] = strings.ToLower(stack["backend"])
-
-			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
-			stack["database"] = strings.ToLower(stack["database"])
-
 			frontend, err := GetFactory(stack["frontend"])
 			if err != nil {
 				return err
 			}
+
+			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
+			stack["backend"] = strings.ToLower(stack["backend"])
 			backend, err := GetFactory(stack["backend"])
 			if err != nil {
 				return err
 			}
-
+			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
+			stack["database"] = strings.ToLower(stack["database"])
 			database, err := GetFactory(stack["database"])
+			if err != nil {
+				return err
+			}
+
+			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
+			stack["auth"] = strings.ToLower(stack["auth"])
+			auth, err := GetFactory(stack["auth"])
 			if err != nil {
 				return err
 			}
@@ -171,26 +175,37 @@ func initCmd() *cobra.Command {
 				Port:        4000,
 			}
 
-			if err := runSelected(rootCtx, "Database", database, opts, []string{"init"}); err != nil {
-				return fmt.Errorf("run DB Init: %w", err)
-			}
+			// This is core core
 
 			g, ctx := errgroup.WithContext(rootCtx)
 
 			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
 			g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
-			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"seed"}) })
+			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"init", "seed"}) })
+			g.Go(func() error { return runSelected(ctx, "Auth", auth, opts, []string{"init"}) })
 
 			if err := g.Wait(); err != nil {
+				return err
+			}
+
+			if err := runSelected(rootCtx, "Auth", auth, opts, []string{"generate"}); err != nil {
 				return err
 			}
 
 			if err := runSelected(rootCtx, "Database", database, opts, []string{"generate"}); err != nil {
 				return err
 			}
-			g, ctx = errgroup.WithContext(cmd.Context())
 
-			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"post"}) })
+			g, ctx = errgroup.WithContext(cmd.Context())
+			g.Go(func() error {
+				if err := runSelected(ctx, "Frontend", frontend, opts, []string{"post"}); err != nil {
+					return err
+				}
+				if err := runSelected(ctx, "Auth", auth, opts, []string{"post"}); err != nil {
+					return err
+				}
+				return nil
+			})
 			g.Go(func() error {
 				if err := runSelected(ctx, "Backend", backend, opts, []string{"post"}); err != nil {
 					return err
@@ -200,11 +215,13 @@ func initCmd() *cobra.Command {
 				}
 				return nil
 			})
-			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
+			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
 			}
+
+			// This is additional templates
 
 			// TODO: We're gonna have to add a functionality to "optionally" make github repo
 			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
@@ -253,6 +270,8 @@ func timedStep(name string, fn func() error) error {
 	start := time.Now()
 	err := fn()
 	dur := time.Since(start)
+	prompt.TermLock.Lock()
+	defer prompt.TermLock.Unlock()
 	if err != nil {
 		log.Printf("%s failed in %s: %v", name, dur, err)
 		return err
