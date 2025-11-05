@@ -152,19 +152,19 @@ func initCmd() *cobra.Command {
 			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
 			stack["auth"] = strings.ToLower(stack["auth"])
 
-			frontend, err := GetFactory(stack["frontend"])
-			if err != nil {
-				return err
-			}
-			backend, err := GetFactory(stack["backend"])
-			if err != nil {
-				return err
-			}
+			// frontend, err := GetFactory(stack["frontend"])
+			// if err != nil {
+			// 	return err
+			// }
+			// backend, err := GetFactory(stack["backend"])
+			// if err != nil {
+			// 	return err
+			// }
 
-			database, err := GetFactory(stack["database"])
-			if err != nil {
-				return err
-			}
+			// database, err := GetFactory(stack["database"])
+			// if err != nil {
+			// 	return err
+			// }
 
 			auth, err := GetFactory(stack["auth"])
 			if err != nil {
@@ -183,9 +183,9 @@ func initCmd() *cobra.Command {
 
 			g, ctx := errgroup.WithContext(rootCtx)
 
-			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
-			g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
-			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"init", "seed"}) })
+			// g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
+			// g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
+			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"init", "seed"}) })
 			g.Go(func() error { return runSelected(ctx, "Auth", auth, opts, []string{"init"}) })
 
 			if err := g.Wait(); err != nil {
@@ -196,26 +196,26 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			if err := runSelected(rootCtx, "Database", database, opts, []string{"generate"}); err != nil {
-				return err
-			}
-			g, ctx = errgroup.WithContext(cmd.Context())
+			// if err := runSelected(rootCtx, "Database", database, opts, []string{"generate"}); err != nil {
+			// 	return err
+			// }
+			// g, ctx = errgroup.WithContext(cmd.Context())
 
-			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"post"}) })
-			g.Go(func() error {
-				if err := runSelected(ctx, "Backend", backend, opts, []string{"post"}); err != nil {
-					return err
-				}
-				if err := runSelected(ctx, "Database", database, opts, []string{"post"}); err != nil {
-					return err
-				}
-				return nil
-			})
-			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
+			// g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"post"}) })
+			// g.Go(func() error {
+			// 	if err := runSelected(ctx, "Backend", backend, opts, []string{"post"}); err != nil {
+			// 		return err
+			// 	}
+			// 	if err := runSelected(ctx, "Database", database, opts, []string{"post"}); err != nil {
+			// 		return err
+			// 	}
+			// 	return nil
+			// })
+			// // g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
-			if err := g.Wait(); err != nil {
-				return err
-			}
+			// if err := g.Wait(); err != nil {
+			// 	return err
+			// }
 
 			// This is additional templates
 
