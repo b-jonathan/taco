@@ -88,3 +88,38 @@ func RenderTemplate(tmplPath string) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+func ValidateDependency(stack, dependency string) bool {
+	if(stack == "none" || dependency == "none") {
+		return true
+	}
+	stackPath := filepath.Join("internal", "stacks", "templates", stack)
+	
+	info, err := os.ReadDir(stackPath)
+	if err != nil {
+		fmt.Errorf("path does not exist", stackPath)
+		return false
+	}
+	//check if subfolder is "src", "db" or doesn't exist -> true. 
+	hasFolder := false
+	for _, e := range info {
+		if !e.IsDir(){
+			continue
+		} 
+		name := e.Name()
+		if name != "src" && name != "db" {
+			hasFolder = true
+			break
+		}
+	}
+	if !hasFolder {
+		return true
+	}
+	//else, check if dependency is in subfolders of stack. 
+	dependencyPath := filepath.Join(stackPath, dependency)
+	if info, err := os.Stat(dependencyPath); err == nil && info.IsDir() {
+		return true
+	}
+	return false
+	
+}
