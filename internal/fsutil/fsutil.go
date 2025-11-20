@@ -88,7 +88,7 @@ func RenderTemplate(tmplPath string) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-
+//stack is the parent tech, check if dependency is compatible with it. 
 func ValidateDependency(stack, dependency string) bool {
 	if(stack == "none" || dependency == "none") {
 		return true

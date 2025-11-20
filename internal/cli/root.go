@@ -17,7 +17,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
-	"github.com/b-jonathan/taco/internal/fsutil"
 )
 
 func Execute() error {
@@ -154,7 +153,6 @@ func initCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("reached before database")
 
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
@@ -163,7 +161,6 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("reached before auth")
 
 			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
 			stack["auth"] = strings.ToLower(stack["auth"])
@@ -172,9 +169,6 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			if !(fsutil.ValidateDependency(stack["auth"], stack["frontend"])) {
-				return fmt.Errorf("%s does not support %s", stack["auth"], stack["frontend"])
-			}
 
 
 			opts := &stacks.Options{
