@@ -118,6 +118,25 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 		}
 	}
 
+	if f := cmd.Flags().Lookup("github"); f != nil && f.Changed {
+		b, _ := strconv.ParseBool(f.Value.String())
+		params.UseGitHub = b
+	} else {
+		if prompt.IsTTY() {
+			useGH, err := prompt.CreateSurveyConfirm(
+				"Create GitHub repository and push initial commit?",
+				prompt.AskOpts{
+					Default: true,
+					Help:    "If yes, taco will create a repo on your GitHub account and push the scaffolded code.",
+				},
+			)
+			if err != nil {
+				return params, err
+			}
+			params.UseGitHub = useGH
+		}
+	}
+
 	return params, nil
 }
 
@@ -228,54 +247,58 @@ func initCmd() *cobra.Command {
 			// TODO: We're gonna have to add a functionality to "optionally" make github repo
 			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
 
-			log.Println("Starting gh command")
-			client := gh.MustFromContext(cmd.Context())
-			log.Println("GitHub client initialized")
-			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-			defer cancel()
+			if params.UseGitHub {
+				log.Println("Starting gh command")
+				client := gh.MustFromContext(cmd.Context())
+				log.Println("GitHub client initialized")
+				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+				defer cancel()
 
-			newRepo := &github.Repository{
-				Name:        github.String(params.Name),
-				Private:     github.Bool(params.Private),
-				Description: github.String(params.Description),
-			}
-
-			repo, _, err := client.Repositories.Create(ctx, "", newRepo)
-			if err != nil {
-				return fmt.Errorf("create repo: %w", err)
-			}
-
-			log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
-			remoteURL := repo.GetSSHURL()
-			if params.Remote == "https" {
-				remoteURL = repo.GetCloneURL()
-			}
-			log.Println("Committing and Pushing to Github...")
-			if err := git.InitAndPush(ctx, projectRoot, remoteURL, "initial-commit"); err != nil {
-				owner := ""
-				if repo.GetOwner() != nil {
-					owner = repo.GetOwner().GetLogin()
+				newRepo := &github.Repository{
+					Name:        github.String(params.Name),
+					Private:     github.Bool(params.Private),
+					Description: github.String(params.Description),
 				}
 
-				// Fallback
-				if owner == "" {
-					parts := strings.Split(repo.GetFullName(), "/")
-					if len(parts) == 2 {
-						owner = parts[0]
+				repo, _, err := client.Repositories.Create(ctx, "", newRepo)
+				if err != nil {
+					return fmt.Errorf("create repo: %w", err)
+				}
+
+				log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+				remoteURL := repo.GetSSHURL()
+				if params.Remote == "https" {
+					remoteURL = repo.GetCloneURL()
+				}
+				log.Println("Committing and Pushing to Github...")
+				if err := git.InitAndPush(ctx, projectRoot, remoteURL, "initial-commit"); err != nil {
+					owner := ""
+					if repo.GetOwner() != nil {
+						owner = repo.GetOwner().GetLogin()
 					}
-				}
 
-				if owner != "" {
-					if _, delErr := client.Repositories.Delete(ctx, owner, repo.GetName()); delErr != nil {
-						log.Printf("warning: failed to delete repo after push failure: %v", delErr)
+					// Fallback
+					if owner == "" {
+						parts := strings.Split(repo.GetFullName(), "/")
+						if len(parts) == 2 {
+							owner = parts[0]
+						}
 					}
-				} else {
-					log.Printf("warning: could not determine owner for cleanup of repo %q", repo.GetFullName())
-				}
 
-				return fmt.Errorf("git init/push failed: %w", err)
+					if owner != "" {
+						if _, delErr := client.Repositories.Delete(ctx, owner, repo.GetName()); delErr != nil {
+							log.Printf("warning: failed to delete repo after push failure: %v", delErr)
+						}
+					} else {
+						log.Printf("warning: could not determine owner for cleanup of repo %q", repo.GetFullName())
+					}
+
+					return fmt.Errorf("git init/push failed: %w", err)
+				}
+				log.Println("Pushed:", repo.GetHTMLURL())
+			} else {
+				log.Println("Skipping GitHub repo creation")
 			}
-			log.Println("Pushed:", repo.GetHTMLURL())
 
 
 			log.Println("Time Taken:", time.Since(start))
@@ -286,6 +309,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().Bool("private", false, "Make the repository private")
 	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
 	cmd.Flags().String("description", "", "Repository description")
+	cmd.Flags().Bool("github", false, "Create and push to a GitHub repository")
 	return cmd
 }
 
