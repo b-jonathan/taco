@@ -174,12 +174,14 @@ func initCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
 			database, err := GetFactory(stack["database"])
 			if err != nil {
 				return err
 			}
+
 
 			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
 			stack["auth"] = strings.ToLower(stack["auth"])
@@ -188,10 +190,13 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
+
+
 			opts := &stacks.Options{
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
-				Frontend:    "http://localhost:3000",
+				Frontend:    stack["frontend"],
+				FrontendURL: "http://localhost:3000",
 				BackendURL:  "http://localhost:4000",
 				Port:        4000,
 			}
