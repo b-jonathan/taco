@@ -16,7 +16,6 @@ Key implementation points:
 
 Init(), Generate(), Post() details
 ---------------------------------
-
 Init()
 - Ensures the project root exists.
 - Runs `npx create-next-app` with flags to scaffold a TypeScript + app-directory Next.js project in `frontend/` (flags include `--ts`, `--app`, `--tailwind`, `--use-npm`, `--disable-git`, etc.).

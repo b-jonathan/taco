@@ -45,7 +45,6 @@ Recommendations
 - Ensure calling code provides defaults or guards prompt calls when `IsTTY()` is false so automation/CI runs succeed.
 - Fix `CreateSurveyMultiSelect` to use `survey.MultiSelect` if multiple-selection UX is desired.
 
-
 When to use
 -----------
 - Use prompt helpers in CLI flows when gathering user input; code should fall back to non-interactive behavior when `prompt.IsTTY()` is false.
