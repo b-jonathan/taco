@@ -137,97 +137,33 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 	}
 	files := []fsutil.FileInfo{}
 
-	// --- app/components/Header.tsx ---
-	headerPath := filepath.Join(srcDir, "app", "components", "Header.tsx")
-	headerContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/components/Header.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render Header.tsx: %w", err)
-	}
-	header := fsutil.FileInfo{
-		Path:    headerPath,
-		Content: headerContent,
-	}
-
-	// --- app/home/page.tsx ---
-	homePagePath := filepath.Join(srcDir, "app", "home", "page.tsx")
-	homePageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/home/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render home/page.tsx: %w", err)
-	}
-	homePage := fsutil.FileInfo{
-		Path:    homePagePath,
-		Content: homePageContent,
+	templateFiles := []struct {
+		templatePath string
+		targetPath   string
+	}{
+		{"firebase/nextjs/src/app/components/Header.tsx.tmpl", filepath.Join(srcDir, "app", "components", "Header.tsx")},
+		{"firebase/nextjs/src/app/home/page.tsx.tmpl", filepath.Join(srcDir, "app", "home", "page.tsx")},
+		{"firebase/nextjs/src/app/login/page.tsx.tmpl", filepath.Join(srcDir, "app", "login", "page.tsx")},
+		{"firebase/nextjs/src/app/register/page.tsx.tmpl", filepath.Join(srcDir, "app", "register", "page.tsx")},
+		{"firebase/nextjs/src/app/layout.tsx.tmpl", filepath.Join(srcDir, "app", "layout.tsx")},
+		{"firebase/nextjs/src/context/authContext/index.tsx.tmpl", filepath.Join(srcDir, "context", "authContext", "index.tsx")},
+		{"firebase/nextjs/src/firebase/auth.ts.tmpl", filepath.Join(srcDir, "firebase", "auth.ts")},
+		{"firebase/nextjs/src/firebase/firebase.ts.tmpl", filepath.Join(srcDir, "firebase", "firebase.ts")},
 	}
 
-	// --- app/login/page.tsx ---
-	loginPagePath := filepath.Join(srcDir, "app", "login", "page.tsx")
-	loginPageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/login/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render login/page.tsx: %w", err)
-	}
-	loginPage := fsutil.FileInfo{
-		Path:    loginPagePath,
-		Content: loginPageContent,
-	}
+	for _, templateFile := range templateFiles {
+		content, err := fsutil.RenderTemplate(templateFile.templatePath)
+		if err != nil {
+			return err
+		}
 
-	// --- app/register/page.tsx ---
-	registerPagePath := filepath.Join(srcDir, "app", "register", "page.tsx")
-	registerPageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/register/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render register/page.tsx: %w", err)
-	}
-	registerPage := fsutil.FileInfo{
-		Path:    registerPagePath,
-		Content: registerPageContent,
-	}
+		file := fsutil.FileInfo{
+			Path:    templateFile.targetPath,
+			Content: content,
+		}
 
-	// --- app/layout.tsx
-	layoutPath := filepath.Join(srcDir, "app", "layout.tsx")
-	layoutContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/layout.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render Layout.tsx: %w", err)
+		files = append(files, file)
 	}
-	layout := fsutil.FileInfo{
-		Path:    layoutPath,
-		Content: layoutContent,
-	}
-	// --- context/authContext/index.tsx ---
-	authContextPath := filepath.Join(srcDir, "context", "authContext", "index.tsx")
-	authContextContent, err := fsutil.RenderTemplate("firebase/nextjs/src/context/authContext/index.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render authContext/index.tsx: %w", err)
-	}
-	authContext := fsutil.FileInfo{
-		Path:    authContextPath,
-		Content: authContextContent,
-	}
-
-	// --- firebase/auth.ts ---
-	authPath := filepath.Join(srcDir, "firebase", "auth.ts")
-	authContent, err := fsutil.RenderTemplate("firebase/nextjs/src/firebase/auth.ts.tmpl")
-	if err != nil {
-		return fmt.Errorf("render firebase/auth.ts: %w", err)
-	}
-	auth := fsutil.FileInfo{
-		Path:    authPath,
-		Content: authContent,
-	}
-
-	// --- firebase/firebase.ts ---
-	firebasePath := filepath.Join(srcDir, "firebase", "firebase.ts")
-	firebaseContent, err := fsutil.RenderTemplate("firebase/nextjs/src/firebase/firebase.ts.tmpl")
-	if err != nil {
-		return fmt.Errorf("render firebase/firebase.ts: %w", err)
-	}
-	firebaseFile := fsutil.FileInfo{
-		Path:    firebasePath,
-		Content: firebaseContent,
-	}
-
-	files = append(files,
-		header, homePage, loginPage, registerPage, layout,
-		authContext, auth, firebaseFile,
-	)
 
 	if err := fsutil.WriteMultipleFiles(files); err != nil {
 		return fmt.Errorf("write firebase nextjs files: %w", err)

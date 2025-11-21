@@ -67,58 +67,32 @@ func (express) Init(ctx context.Context, opts *Options) error {
 func (express) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	files := []fsutil.FileInfo{}
-	tsconfigPath := filepath.Join(backendDir, "tsconfig.json")
-	tsconfigContent, err := fsutil.RenderTemplate("express/tsconfig.json.tmpl")
-	if err != nil {
-		return err
-	}
-	tsconfig := fsutil.FileInfo{
-		Path:    tsconfigPath,
-		Content: tsconfigContent,
-	}
-	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	indexContent, err := fsutil.RenderTemplate("express/src/index.ts.tmpl")
-	if err != nil {
-		return err
+
+	// struct for template paths/files
+	templateFiles := []struct {
+		TemplatePath string
+		TargetPath   string
+	}{
+		{"express/tsconfig.json.tmpl", filepath.Join(backendDir, "tsconfig.json")},
+		{"express/src/index.ts.tmpl", filepath.Join(backendDir, "src", "index.ts")},
+		{"express/config/eslint.config.mjs.tmpl", filepath.Join(backendDir, "eslint.config.mjs")},
+		{"express/config/.prettierrc.json.tmpl", filepath.Join(backendDir, ".prettierrc.json")},
+		{"express/config/.prettierignore.tmpl", filepath.Join(backendDir, ".prettierrignore")},
 	}
 
-	index := fsutil.FileInfo{
-		Path:    indexPath,
-		Content: indexContent,
-	}
+	for _, templateFile := range templateFiles {
+		content, err := fsutil.RenderTemplate(templateFile.TemplatePath)
+		if err != nil {
+			return err
+		}
 
-	eslintPath := filepath.Join(backendDir, "eslint.config.mjs")
-	eslintContent, err := fsutil.RenderTemplate("express/eslint.config.mjs.tmpl")
+		file := fsutil.FileInfo{
+			Path:    templateFile.TargetPath,
+			Content: content,
+		}
 
-	if err != nil {
-		return err
+		files = append(files, file)
 	}
-	eslint := fsutil.FileInfo{
-		Path:    eslintPath,
-		Content: eslintContent,
-	}
-
-	prettierPath := filepath.Join(backendDir, ".prettierrc.json")
-	prettierContent, err := fsutil.RenderTemplate("express/.prettierrc.json.tmpl")
-	if err != nil {
-		return err
-	}
-	prettier := fsutil.FileInfo{
-		Path:    prettierPath,
-		Content: prettierContent,
-	}
-
-	prettierIgnorePath := filepath.Join(backendDir, ".prettierignore")
-	prettierIgnoreContent, err := fsutil.RenderTemplate("express/.prettierignore.tmpl")
-	if err != nil {
-		return err
-	}
-
-	prettierIgnore := fsutil.FileInfo{
-		Path:    prettierIgnorePath,
-		Content: prettierIgnoreContent,
-	}
-	files = append(files, tsconfig, index, eslint, prettier, prettierIgnore)
 
 	if err := fsutil.WriteMultipleFiles(files); err != nil {
 		return fmt.Errorf("write files: %w", err)
@@ -138,8 +112,8 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
-	return nil
 
+	return nil
 }
 
 func (express) Post(ctx context.Context, opts *Options) error {
