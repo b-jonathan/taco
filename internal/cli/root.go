@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/b-jonathan/taco/internal/gh"
 	"github.com/b-jonathan/taco/internal/git"
+	"github.com/b-jonathan/taco/internal/logx"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
 	github "github.com/google/go-github/v55/github"
@@ -244,9 +244,9 @@ func initCmd() *cobra.Command {
 
 			// This is additional templates
 			if params.UseGitHub {
-				log.Println("Starting gh command")
+				fmt.Println("Starting gh command")
 				client := gh.MustFromContext(cmd.Context())
-				log.Println("GitHub client initialized")
+				fmt.Println("GitHub client initialized")
 				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 				defer cancel()
 
@@ -261,12 +261,12 @@ func initCmd() *cobra.Command {
 					return fmt.Errorf("create repo: %w", err)
 				}
 
-				log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+				fmt.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
 				}
-				log.Println("Committing and Pushing to Github...")
+				fmt.Println("Committing and Pushing to Github...")
 				if err := git.InitAndPush(ctx, projectRoot, remoteURL, "initial-commit"); err != nil {
 					owner := ""
 					if repo.GetOwner() != nil {
@@ -283,20 +283,20 @@ func initCmd() *cobra.Command {
 
 					if owner != "" {
 						if _, delErr := client.Repositories.Delete(ctx, owner, repo.GetName()); delErr != nil {
-							log.Printf("warning: failed to delete repo after push failure: %v", delErr)
+							logx.Warnf("failed to delete repo after push failure: %v", delErr)
 						}
 					} else {
-						log.Printf("warning: could not determine owner for cleanup of repo %q", repo.GetFullName())
+						logx.Warnf("could not determine owner for cleanup of repo %q", repo.GetFullName())
 					}
 
 					return fmt.Errorf("git init/push failed: %w", err)
 				}
-				log.Println("Pushed:", repo.GetHTMLURL())
+				fmt.Println("Pushed:", repo.GetHTMLURL())
 			} else {
-				log.Println("Skipping GitHub repo creation")
+				fmt.Println("Skipping GitHub repo creation")
 			}
 
-			log.Println("Time Taken:", time.Since(start))
+			fmt.Println("Time Taken:", time.Since(start))
 			return nil
 		},
 	}
@@ -306,21 +306,6 @@ func initCmd() *cobra.Command {
 	cmd.Flags().String("description", "", "Repository description")
 	cmd.Flags().Bool("github", false, "Create and push to a GitHub repository")
 	return cmd
-}
-
-// TODO: We'll prob have to add this to like a middleware/logging package helper lol
-func timedStep(name string, fn func() error) error {
-	start := time.Now()
-	err := fn()
-	dur := time.Since(start)
-	prompt.TermLock.Lock()
-	defer prompt.TermLock.Unlock()
-	if err != nil {
-		log.Printf("%s failed in %s: %v", name, dur, err)
-		return err
-	}
-	log.Printf("%s finished in %s", name, dur)
-	return nil
 }
 
 func stackSteps(
@@ -372,9 +357,9 @@ func stackSteps(
 }
 
 func runSteps(label string, steps []Step) error {
-	return timedStep(label+" total", func() error {
+	return logx.Time(label+" total", func() error {
 		for _, s := range steps {
-			if err := timedStep(s.Name, s.Fn); err != nil {
+			if err := logx.Time(s.Name, s.Fn); err != nil {
 				return err
 			}
 		}
