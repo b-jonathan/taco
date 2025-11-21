@@ -174,7 +174,8 @@ func initCmd() *cobra.Command {
 			opts := &stacks.Options{
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
-				Frontend:    "http://localhost:3000",
+				Frontend:    stack["frontend"],
+				FrontendURL: "http://localhost:3000",
 				BackendURL:  "http://localhost:4000",
 				Port:        4000,
 			}
