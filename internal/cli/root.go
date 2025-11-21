@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	github "github.com/google/go-github/v55/github"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/b-jonathan/taco/internal/gh"
 	"github.com/b-jonathan/taco/internal/git"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	github "github.com/google/go-github/v55/github"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -174,7 +174,6 @@ func initCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
 			database, err := GetFactory(stack["database"])
@@ -182,15 +181,12 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-
 			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
 			stack["auth"] = strings.ToLower(stack["auth"])
 			auth, err := GetFactory(stack["auth"])
 			if err != nil {
 				return err
 			}
-
-
 
 			opts := &stacks.Options{
 				ProjectRoot: projectRoot,
@@ -241,17 +237,12 @@ func initCmd() *cobra.Command {
 				}
 				return nil
 			})
-			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
 			}
 
 			// This is additional templates
-
-			// TODO: We're gonna have to add a functionality to "optionally" make github repo
-			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
-
 			if params.UseGitHub {
 				log.Println("Starting gh command")
 				client := gh.MustFromContext(cmd.Context())
@@ -305,14 +296,13 @@ func initCmd() *cobra.Command {
 				log.Println("Skipping GitHub repo creation")
 			}
 
-
 			log.Println("Time Taken:", time.Since(start))
 			return nil
 		},
 	}
 	// Flags that feed into gatherInitParams
 	cmd.Flags().Bool("private", false, "Make the repository private")
-	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
+	cmd.Flags().String("remote", "", "Remote URL type ssh or https")
 	cmd.Flags().String("description", "", "Repository description")
 	cmd.Flags().Bool("github", false, "Create and push to a GitHub repository")
 	return cmd
@@ -393,6 +383,9 @@ func runSteps(label string, steps []Step) error {
 }
 
 func runSelected(ctx context.Context, label string, s stacks.Stack, opts *stacks.Options, funcs []string) error {
+	if s == nil {
+		return nil
+	}
 	steps, err := stackSteps(ctx, label, s, opts, funcs)
 	if err != nil {
 		return err
