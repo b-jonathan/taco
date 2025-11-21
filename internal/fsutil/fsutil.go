@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"text/template"
+
+	"github.com/b-jonathan/taco/internal/stacks/templates"
 )
 
 // TODO: Some of these were completely vibe coded, just need to refactor a bit to make more consistent
@@ -77,8 +79,13 @@ func WithFileLock(path string, fn func() error) error {
 }
 
 func RenderTemplate(tmplPath string) ([]byte, error) {
-	tmplPath = filepath.Join("internal", "stacks", "templates", tmplPath)
-	tmpl, err := template.ParseFiles(tmplPath)
+	data, err := templates.FS.ReadFile(tmplPath)
+	if err != nil {
+		return nil, fmt.Errorf("read embedded template %s: %w", tmplPath, err)
+	}
+
+	// Parse template from in-memory string
+	tmpl, err := template.New(filepath.Base(tmplPath)).Parse(string(data))
 	if err != nil {
 		return nil, fmt.Errorf("parse template %s: %w", tmplPath, err)
 	}
@@ -88,24 +95,25 @@ func RenderTemplate(tmplPath string) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-//stack is the parent tech, check if dependency is compatible with it. 
+
+// stack is the parent tech, check if dependency is compatible with it.
 func ValidateDependency(stack, dependency string) bool {
-	if(stack == "none" || dependency == "none") {
+	if stack == "none" || dependency == "none" {
 		return true
 	}
 	stackPath := filepath.Join("internal", "stacks", "templates", stack)
-	
+
 	info, err := os.ReadDir(stackPath)
 	if err != nil {
 		fmt.Printf("path does not exist %s\n", stackPath)
 		return false
 	}
-	//check if subfolder is "src", "db" or doesn't exist -> true. 
+	//check if subfolder is "src", "db" or doesn't exist -> true.
 	hasFolder := false
 	for _, e := range info {
-		if !e.IsDir(){
+		if !e.IsDir() {
 			continue
-		} 
+		}
 		name := e.Name()
 		if name != "src" && name != "db" {
 			hasFolder = true
@@ -115,11 +123,11 @@ func ValidateDependency(stack, dependency string) bool {
 	if !hasFolder {
 		return true
 	}
-	//else, check if dependency is in subfolders of stack. 
+	//else, check if dependency is in subfolders of stack.
 	dependencyPath := filepath.Join(stackPath, dependency)
 	if info, err := os.Stat(dependencyPath); err == nil && info.IsDir() {
 		return true
 	}
 	return false
-	
+
 }

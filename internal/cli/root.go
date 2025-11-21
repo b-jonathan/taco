@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -39,17 +38,23 @@ func newRootCmd() *cobra.Command {
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
-		if gh.HasClient(ctx) {
-			return nil
-		}
-		token := os.Getenv("GITHUB_TOKEN")
-		if token == "" {
-			return fmt.Errorf("set GITHUB_TOKEN")
-		}
-		client := gh.NewClient(ctx, token)
-		client.UserAgent = "taco-cli"
-		cmd.SetContext(gh.WithContext(ctx, client))
+		// ctx := cmd.Context()
+		// if gh.HasClient(ctx) {
+		// 	return nil
+		// }
+		// token := os.Getenv("GITHUB_TOKEN")
+
+		// if token == "" {
+
+		// 	return fmt.Errorf("set GITHUB_TOKEN")
+		// }
+		// client := gh.NewClient(ctx, token)
+		// client.UserAgent = "taco-cli"
+		// client, err := gh.EnsureClient(ctx)
+		// if err != nil {
+		// 	return err
+		// }
+		// cmd.SetContext(gh.WithContext(ctx, client))
 		return nil
 	}
 	cmd.AddCommand(initCmd())
@@ -154,7 +159,7 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			projectRoot := filepath.Join("..", params.Name)
+			projectRoot := params.Name
 			if err := os.MkdirAll(projectRoot, 0o755); err != nil {
 				return fmt.Errorf("mkdir project root: %w", err)
 			}
@@ -245,9 +250,18 @@ func initCmd() *cobra.Command {
 			// This is additional templates
 			if params.UseGitHub {
 				fmt.Println("Starting gh command")
-				client := gh.MustFromContext(cmd.Context())
+				// client, err := gh.FromContext(cmd.Context())
+				// if err != nil {
+				// 	return err
+				// }
+				client, err := gh.EnsureClient(cmd.Context())
+				if err != nil {
+					return err
+				}
+				cmd.SetContext(gh.WithContext(cmd.Context(), client))
 				fmt.Println("GitHub client initialized")
-				ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+				ghCtx := context.Background()
+				ghCtx, cancel := context.WithTimeout(ghCtx, 100*time.Second)
 				defer cancel()
 
 				newRepo := &github.Repository{
@@ -256,7 +270,7 @@ func initCmd() *cobra.Command {
 					Description: github.String(params.Description),
 				}
 
-				repo, _, err := client.Repositories.Create(ctx, "", newRepo)
+				repo, _, err := client.Repositories.Create(ghCtx, "", newRepo)
 				if err != nil {
 					return fmt.Errorf("create repo: %w", err)
 				}
@@ -267,7 +281,7 @@ func initCmd() *cobra.Command {
 					remoteURL = repo.GetCloneURL()
 				}
 				fmt.Println("Committing and Pushing to Github...")
-				if err := git.InitAndPush(ctx, projectRoot, remoteURL, "initial-commit"); err != nil {
+				if err := git.InitAndPush(ghCtx, projectRoot, remoteURL, "initial-commit"); err != nil {
 					owner := ""
 					if repo.GetOwner() != nil {
 						owner = repo.GetOwner().GetLogin()
@@ -282,7 +296,7 @@ func initCmd() *cobra.Command {
 					}
 
 					if owner != "" {
-						if _, delErr := client.Repositories.Delete(ctx, owner, repo.GetName()); delErr != nil {
+						if _, delErr := client.Repositories.Delete(ghCtx, owner, repo.GetName()); delErr != nil {
 							logx.Warnf("failed to delete repo after push failure: %v", delErr)
 						}
 					} else {
