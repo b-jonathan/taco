@@ -4,18 +4,26 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"runtime"
 	"time"
 
-	"github.com/b-jonathan/taco/internal/logx"
 	"github.com/b-jonathan/taco/internal/prompt"
 )
 
 func Init() error {
 	log.SetPrefix("[taco] ")
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(log.Lshortfile)
 	return nil
 }
 
+func caller(skip int) (file string, line int) {
+	_, f, l, ok := runtime.Caller(skip)
+	if !ok {
+		return "???", 0
+	}
+	return filepath.Base(f), l
+}
 func Time(name string, fn func() error) error {
 	start := time.Now()
 	err := fn()
@@ -23,19 +31,26 @@ func Time(name string, fn func() error) error {
 	prompt.TermLock.Lock()
 	defer prompt.TermLock.Unlock()
 	if err != nil {
-		logx.Infof("%s failed in %s: %v", name, dur, err)
+		Infof("%s failed in %s: %v", name, dur, err)
 		return err
 	}
-	logx.Infof("%s finished in %s", name, dur)
+	Infof("%s finished in %s", name, dur)
 	return nil
 }
 
 func Infof(format string, args ...any) {
-	log.Printf("[INFO] "+format+"", args...)
+	file, line := caller(5)
+	fullFormat := "[%s:%d] [INFO] " + format + "\n"
+	fullArgs := append([]any{file, line}, args...)
+	fmt.Printf(fullFormat, fullArgs...)
+
 }
 
 func Warnf(format string, args ...any) {
-	log.Printf("[WARN] "+format, args...)
+	file, line := caller(5)
+	fullFormat := "[%s:%d] [WARN] " + format + "\n"
+	fullArgs := append([]any{file, line}, args...)
+	fmt.Printf(fullFormat, fullArgs...)
 }
 
 func Errorf(format string, args ...any) {
