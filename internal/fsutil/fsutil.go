@@ -97,7 +97,7 @@ func ValidateDependency(stack, dependency string) bool {
 	
 	info, err := os.ReadDir(stackPath)
 	if err != nil {
-		fmt.Printf("path does not exist", stackPath)
+		fmt.Printf("path does not exist %s\n", stackPath)
 		return false
 	}
 	//check if subfolder is "src", "db" or doesn't exist -> true. 
