@@ -21,6 +21,6 @@ jobs:
       - name: Install golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v1.61.0 # or latest stable
+          version: v1.64.8
       - name: Run lint checks
         run: ./hack/lint-check.sh
