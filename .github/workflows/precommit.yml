@@ -1,0 +1,24 @@
+name: Pre-commit Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  Code-Checks:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.25.1'
+        cache: true
+
+    - name: Install pre-commit
+      run: pip install pre-commit
+
+    - name: Run pre-commit
+      continue-on-error: false
+      run: pre-commit run --all-files
