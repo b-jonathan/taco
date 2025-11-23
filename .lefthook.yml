@@ -3,7 +3,6 @@ pre-commit:
     lint-check:
       run: hack/lint-check.sh
       stage_fixed: true
-  
 manual:
   commands:
     fix:
