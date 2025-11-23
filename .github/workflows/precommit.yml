@@ -1,0 +1,27 @@
+name: Pre-commit Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.head_ref }}
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install pre-commit
+      run: pip install pre-commit
+
+    - name: Run pre-commit
+      continue-on-error: true
+      run: pre-commit run --all-files --show-diff-on-failure
