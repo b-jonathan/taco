@@ -1,0 +1,5 @@
+pre-commit:
+  commands:
+    golangci:
+      run: golangci-lint run --new-from-rev=HEAD~ --timeout=5m
+      stage_fixed: true
