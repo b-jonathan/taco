@@ -20,4 +20,4 @@ jobs:
           go-version: "1.25"
 
       - name: Run lint checks
-        run: ./../hack/lint-check.sh
+        run: ./hack/lint-check.sh
