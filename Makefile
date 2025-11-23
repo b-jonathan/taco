@@ -5,9 +5,13 @@ build:
 install:
 	@echo "Installing Taco"
 	@go install ./cmd/taco
-lint:
+lint-check:
 	@echo "Linting source code"
 	@golangci-lint run
+
+lint-fix:
+	@echo "Fixing Lint errors in source code"
+	@golangci-lint run --fix
 
 setup:
 	@echo "Setting up pre-commit hooks"
