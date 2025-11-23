@@ -18,7 +18,6 @@ Key implementation points
 
 Init(), Generate(), Post(), Seed() details
 -----------------------------------------
-
 Init()
 - Interactive flow that asks whether to use a local MongoDB (`mongodb://localhost:27017`) or provide an authenticated URI (Atlas/custom).
 - If the user supplies a custom URI the code validates the format and offers an "undo" flow to return to the Local choice.
