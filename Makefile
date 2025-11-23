@@ -9,6 +9,11 @@ lint:
 	@echo "Linting source code"
 	@golangci-lint run
 
+setup:
+	@echo "Setting up pre-commit hooks"
+	@go install github.com/evilmartians/lefthook@latest
+	@lefthook install
+
 build-all:
 	go build -o npm/bin/taco-windows-amd64.exe ./cmd/taco
 	GOOS=darwin GOARCH=amd64 go build -o npm/bin/taco-darwin-amd64 ./cmd/taco
