@@ -1,3 +1,11 @@
+setup:
+	@echo "Setting up Dev Tools"
+	@hack/setup.sh
+
+check:
+	@echo "Running setup checks"
+	@hack/dep-check.sh
+
 build:
 	@echo "Building Taco"
 	@go build -o taco ./cmd/taco
@@ -5,18 +13,14 @@ build:
 install:
 	@echo "Installing Taco"
 	@go install ./cmd/taco
+
 lint-check:
 	@echo "Linting source code"
-	@golangci-lint run
+	@hack/lint-check.sh
 
 lint-fix:
 	@echo "Fixing Lint errors in source code"
-	@golangci-lint run --fix
-
-setup:
-	@echo "Setting up pre-commit hooks"
-	@go install github.com/evilmartians/lefthook@latest
-	@lefthook install
+	@hack/lint-fix.sh
 
 build-all:
 	go build -o npm/bin/taco-windows-amd64.exe ./cmd/taco

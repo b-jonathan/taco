@@ -1,5 +1,10 @@
 pre-commit:
   commands:
-    golangci:
-      run: golangci-lint run --new-from-rev=HEAD~ --timeout=5m
+    lint-check:
+      run: hack/lint-check.sh
+      stage_fixed: true
+manual:
+  commands:
+    fix:
+      run: ./hack/lint-fix.sh
       stage_fixed: true

@@ -132,7 +132,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 func (express) Generate(ctx context.Context, opts *Options) error {
 
 	if !fsutil.ValidateDependency("firebase", opts.Frontend) {
-    	return fmt.Errorf("firebase cannot be used with frontend '%s'", opts.Frontend)
+		return fmt.Errorf("firebase cannot be used with frontend '%s'", opts.Frontend)
 	}
 
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
