@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "==> Verifying Go installation..."
 if ! command -v go >/dev/null 2>&1; then
-    echo "Go is not installed. Install Go 1.XX+ first."
+    echo "Go is not installed. Install Go 1.21+ first."
     exit 1
 fi
 
