@@ -75,9 +75,9 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 	}{
 		{"express/tsconfig.json.tmpl", filepath.Join(backendDir, "tsconfig.json")},
 		{"express/src/index.ts.tmpl", filepath.Join(backendDir, "src", "index.ts")},
-		{"express/config/eslint.config.mjs.tmpl", filepath.Join(backendDir, "eslint.config.mjs")},
-		{"express/config/.prettierrc.json.tmpl", filepath.Join(backendDir, ".prettierrc.json")},
-		{"express/config/.prettierignore.tmpl", filepath.Join(backendDir, ".prettierrignore")},
+		{"express/eslint.config.mjs.tmpl", filepath.Join(backendDir, "eslint.config.mjs")},
+		{"express/.prettierrc.json.tmpl", filepath.Join(backendDir, ".prettierrc.json")},
+		{"express/.prettierignore.tmpl", filepath.Join(backendDir, ".prettierrignore")},
 	}
 
 	for _, templateFile := range templateFiles {

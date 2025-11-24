@@ -141,7 +141,7 @@ func (mongodb) Generate(ctx context.Context, opts *Options) error {
 		return fmt.Errorf("npm install dev: %w", err)
 	}
 	clientPath := filepath.Join(backendDir, "src", "db", "client.ts")
-	clientContent, err := fsutil.RenderTemplate("mongodb/db/client.ts.tmpl")
+	clientContent, err := fsutil.RenderTemplate("mongodb/express/src/db/client.ts.tmpl")
 	if err != nil {
 		return err
 	}
