@@ -16,7 +16,6 @@ Key implementation points:
 
 Init(), Generate(), Post() details
 ---------------------------------
-
 Init()
 - Creates `backend/` and `backend/src/` directories.
 - Runs `npm init -y` inside `backend/`.

@@ -18,6 +18,7 @@ type Options struct {
 	ProjectRoot string
 	AppName     string
 	Frontend    string
+	FrontendURL string
 	Backend     string
 	BackendURL  string
 	Database    string

@@ -3,17 +3,18 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/b-jonathan/taco/internal/gh"
+	"github.com/b-jonathan/taco/internal/git"
+	"github.com/b-jonathan/taco/internal/logx"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	github "github.com/google/go-github/v55/github"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -37,17 +38,23 @@ func newRootCmd() *cobra.Command {
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
-		if gh.HasClient(ctx) {
-			return nil
-		}
-		token := os.Getenv("GITHUB_TOKEN")
-		if token == "" {
-			return fmt.Errorf("set GITHUB_TOKEN")
-		}
-		client := gh.NewClient(ctx, token)
-		client.UserAgent = "taco-cli"
-		cmd.SetContext(gh.WithContext(ctx, client))
+		// ctx := cmd.Context()
+		// if gh.HasClient(ctx) {
+		// 	return nil
+		// }
+		// token := os.Getenv("GITHUB_TOKEN")
+
+		// if token == "" {
+
+		// 	return fmt.Errorf("set GITHUB_TOKEN")
+		// }
+		// client := gh.NewClient(ctx, token)
+		// client.UserAgent = "taco-cli"
+		// client, err := gh.EnsureClient(ctx)
+		// if err != nil {
+		// 	return err
+		// }
+		// cmd.SetContext(gh.WithContext(ctx, client))
 		return nil
 	}
 	cmd.AddCommand(initCmd())
@@ -116,6 +123,25 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 		}
 	}
 
+	if f := cmd.Flags().Lookup("github"); f != nil && f.Changed {
+		b, _ := strconv.ParseBool(f.Value.String())
+		params.UseGitHub = b
+	} else {
+		if prompt.IsTTY() {
+			useGH, err := prompt.CreateSurveyConfirm(
+				"Create GitHub repository and push initial commit?",
+				prompt.AskOpts{
+					Default: true,
+					Help:    "If yes, taco will create a repo on your GitHub account and push the scaffolded code.",
+				},
+			)
+			if err != nil {
+				return params, err
+			}
+			params.UseGitHub = useGH
+		}
+	}
+
 	return params, nil
 }
 
@@ -133,7 +159,7 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			projectRoot := filepath.Join("..", params.Name)
+			projectRoot := params.Name
 			if err := os.MkdirAll(projectRoot, 0o755); err != nil {
 				return fmt.Errorf("mkdir project root: %w", err)
 			}
@@ -170,7 +196,8 @@ func initCmd() *cobra.Command {
 			opts := &stacks.Options{
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
-				Frontend:    "http://localhost:3000",
+				Frontend:    stack["frontend"],
+				FrontendURL: "http://localhost:3000",
 				BackendURL:  "http://localhost:4000",
 				Port:        4000,
 			}
@@ -215,69 +242,84 @@ func initCmd() *cobra.Command {
 				}
 				return nil
 			})
-			// g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"post"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
 			}
 
 			// This is additional templates
+			if params.UseGitHub {
+				fmt.Println("Starting gh command")
+				// client, err := gh.FromContext(cmd.Context())
+				// if err != nil {
+				// 	return err
+				// }
+				client, err := gh.EnsureClient(cmd.Context())
+				if err != nil {
+					return err
+				}
+				cmd.SetContext(gh.WithContext(cmd.Context(), client))
+				fmt.Println("GitHub client initialized")
+				ghCtx := context.Background()
+				ghCtx, cancel := context.WithTimeout(ghCtx, 100*time.Second)
+				defer cancel()
 
-			// TODO: We're gonna have to add a functionality to "optionally" make github repo
-			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
+				newRepo := &github.Repository{
+					Name:        github.String(params.Name),
+					Private:     github.Bool(params.Private),
+					Description: github.String(params.Description),
+				}
 
-			// log.Println("Starting gh command")
-			// client := gh.MustFromContext(cmd.Context())
-			// log.Println("GitHub client initialized")
-			// ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
-			// defer cancel()
+				repo, _, err := client.Repositories.Create(ghCtx, "", newRepo)
+				if err != nil {
+					return fmt.Errorf("create repo: %w", err)
+				}
 
-			// newRepo := &github.Repository{
-			// 	Name:        github.String(params.Name),
-			// 	Private:     github.Bool(params.Private),
-			// 	Description: github.String(params.Description),
-			// }
+				fmt.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+				remoteURL := repo.GetSSHURL()
+				if params.Remote == "https" {
+					remoteURL = repo.GetCloneURL()
+				}
+				fmt.Println("Committing and Pushing to Github...")
+				if err := git.InitAndPush(ghCtx, projectRoot, remoteURL, "initial-commit"); err != nil {
+					owner := ""
+					if repo.GetOwner() != nil {
+						owner = repo.GetOwner().GetLogin()
+					}
 
-			// repo, _, err := client.Repositories.Create(ctx, "", newRepo)
-			// if err != nil {
-			// 	return fmt.Errorf("create repo: %w", err)
-			// }
+					// Fallback
+					if owner == "" {
+						parts := strings.Split(repo.GetFullName(), "/")
+						if len(parts) == 2 {
+							owner = parts[0]
+						}
+					}
 
-			// log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
-			// remoteURL := repo.GetSSHURL()
-			// if params.Remote == "https" {
-			// 	remoteURL = repo.GetCloneURL()
-			// }
-			// log.Println("Committing and Pushing to Github...")
-			// if err := git.InitAndPush(ctx, projectRoot, remoteURL, "chore: initial commit"); err != nil {
-			// 	_, err := client.Repositories.Delete(ctx, "", *newRepo.Name)
-			// 	return err
-			// }
-			// log.Println("Pushed:", repo.GetHTMLURL())
-			log.Println("Time Taken:", time.Since(start))
+					if owner != "" {
+						if _, delErr := client.Repositories.Delete(ghCtx, owner, repo.GetName()); delErr != nil {
+							logx.Warnf("failed to delete repo after push failure: %v", delErr)
+						}
+					} else {
+						logx.Warnf("could not determine owner for cleanup of repo %q", repo.GetFullName())
+					}
+
+					return fmt.Errorf("git init/push failed: %w", err)
+				}
+				fmt.Println("Pushed:", repo.GetHTMLURL())
+			} else {
+				fmt.Println("Skipping GitHub repo creation")
+			}
+
+			fmt.Println("Time Taken:", time.Since(start))
 			return nil
 		},
 	}
 	// Flags that feed into gatherInitParams
 	cmd.Flags().Bool("private", false, "Make the repository private")
-	cmd.Flags().String("remote", "ssh", "Remote URL type ssh or https")
+	cmd.Flags().String("remote", "", "Remote URL type ssh or https")
 	cmd.Flags().String("description", "", "Repository description")
+	cmd.Flags().Bool("github", false, "Create and push to a GitHub repository")
 	return cmd
-}
-
-// TODO: We'll prob have to add this to like a middleware/logging package helper lol
-func timedStep(name string, fn func() error) error {
-	start := time.Now()
-	err := fn()
-	dur := time.Since(start)
-	prompt.TermLock.Lock()
-	defer prompt.TermLock.Unlock()
-	if err != nil {
-		log.Printf("%s failed in %s: %v", name, dur, err)
-		return err
-	}
-	log.Printf("%s finished in %s", name, dur)
-	return nil
 }
 
 func stackSteps(
@@ -329,9 +371,9 @@ func stackSteps(
 }
 
 func runSteps(label string, steps []Step) error {
-	return timedStep(label+" total", func() error {
+	return logx.Time(label+" total", func() error {
 		for _, s := range steps {
-			if err := timedStep(s.Name, s.Fn); err != nil {
+			if err := logx.Time(s.Name, s.Fn); err != nil {
 				return err
 			}
 		}
@@ -340,6 +382,9 @@ func runSteps(label string, steps []Step) error {
 }
 
 func runSelected(ctx context.Context, label string, s stacks.Stack, opts *stacks.Options, funcs []string) error {
+	if s == nil {
+		return nil
+	}
 	steps, err := stackSteps(ctx, label, s, opts, funcs)
 	if err != nil {
 		return err
