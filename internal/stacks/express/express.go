@@ -9,7 +9,8 @@ import (
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
-	"github.com/b-jonathan/taco/internal/nodepkg"
+
+	// "github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/stacks"
 )
 
@@ -65,52 +66,11 @@ func (express) Init(ctx context.Context, opts *Options) error {
 }
 
 func (express) Generate(ctx context.Context, opts *Options) error {
-	backendDir := filepath.Join(opts.ProjectRoot, "backend")
-	files := []fsutil.FileInfo{}
+	templateDir := "express"
+	outputDir := filepath.Join(opts.ProjectRoot, "backend")
 
-	// struct for template paths/files
-	templateFiles := []struct {
-		TemplatePath string
-		TargetPath   string
-	}{
-		{"express/tsconfig.json.tmpl", filepath.Join(backendDir, "tsconfig.json")},
-		{"express/src/index.ts.tmpl", filepath.Join(backendDir, "src", "index.ts")},
-		{"express/eslint.config.mjs.tmpl", filepath.Join(backendDir, "eslint.config.mjs")},
-		{"express/.prettierrc.json.tmpl", filepath.Join(backendDir, ".prettierrc.json")},
-		{"express/.prettierignore.tmpl", filepath.Join(backendDir, ".prettierrignore")},
-	}
-
-	for _, templateFile := range templateFiles {
-		content, err := fsutil.RenderTemplate(templateFile.TemplatePath)
-		if err != nil {
-			return err
-		}
-
-		file := fsutil.FileInfo{
-			Path:    templateFile.TargetPath,
-			Content: content,
-		}
-
-		files = append(files, file)
-	}
-
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
-		return fmt.Errorf("write files: %w", err)
-	}
-
-	packageParams := nodepkg.InitPackageParams{
-		Name: "express",
-		Main: "dist/index.js",
-		Scripts: map[string]string{
-			"dev":        "tsx watch src/index.ts",
-			"build":      "tsc -p tsconfig.json",
-			"start":      "node dist/index.js",
-			"lint-check": "eslint . && prettier --check .",
-			"lint-fix":   "eslint . --fix && prettier --write .",
-		}}
-
-	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
-		return fmt.Errorf("write src/index.ts: %w", err)
+	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
+		return err
 	}
 
 	return nil

@@ -3,8 +3,10 @@ package fsutil
 import (
 	"bytes"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"text/template"
 
@@ -130,4 +132,39 @@ func ValidateDependency(stack, dependency string) bool {
 	}
 	return false
 
+}
+
+func GenerateFromTemplateDir(templateRoot, outputRoot string) error {
+	return fs.WalkDir(templates.FS, templateRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if !strings.HasSuffix(path, ".tmpl") {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(templateRoot, path)
+		if err != nil {
+			return err
+		}
+
+		outputRel := strings.TrimSuffix(relPath, ".tmpl")
+		finalPath := filepath.Join(outputRoot, outputRel)
+
+		content, err := RenderTemplate(path)
+		if err != nil {
+			return fmt.Errorf("render template %s: %w", path, err)
+		}
+
+		if err := os.MkdirAll(filepath.Dir(finalPath), 0755); err != nil {
+			return err
+		}
+
+		return os.WriteFile(finalPath, content, 0644)
+	})
 }
