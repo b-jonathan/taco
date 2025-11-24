@@ -58,7 +58,7 @@ func Push(ctx context.Context, projectRoot, remoteURL, branch string) error {
 	return nil
 }
 
-// Calls all 3 of the helper functions. If we don't want this then we will need to 
+// Calls all 3 of the helper functions. If we don't want this then we will need to
 // change the function call in cli/root.go
 func InitAndPush(ctx context.Context, projectRoot, remoteURL, commitMsg string) error {
 	if err := Init(ctx, projectRoot); err != nil {
@@ -75,5 +75,3 @@ func InitAndPush(ctx context.Context, projectRoot, remoteURL, commitMsg string) 
 
 	return nil
 }
-
-

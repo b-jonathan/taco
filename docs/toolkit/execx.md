@@ -8,8 +8,6 @@ Purpose
 
 Key APIs
 --------
-Key APIs
---------
 - `RunCmd(ctx context.Context, dir string, cmd string) error` — execute a command-line string by splitting on spaces and running the program with the resulting args; captures stdout/stderr and returns a formatted error on failure.
 - `RunCmdLive(ctx context.Context, dir string, cmd string) error` — like `RunCmd` but streams stdout/stderr to the user's terminal (interactive programs); also attaches Stdin so prompts work.
 - `RunCmdOutput(ctx context.Context, dir string, cmd string) (stdout string, stderr string, err error)` — run a command and return captured stdout and stderr as strings; on error stderr is returned and an error describing the failure is provided.

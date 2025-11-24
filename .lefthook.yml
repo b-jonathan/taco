@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    lint-check:
+      run: hack/lint-check.sh
+      stage_fixed: true
+manual:
+  commands:
+    fix:
+      run: ./hack/lint-fix.sh
+      stage_fixed: true

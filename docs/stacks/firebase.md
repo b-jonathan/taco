@@ -11,7 +11,6 @@ Compatibility
 -------------
 - Frontend stacks: `nextjs`. The generated templates assume Next.js app directory structure under `frontend/src/`.
 
-
 Key implementation points
 -------------------------
 - See `internal/stacks/firebase/firebase.go` and `internal/stacks/firebase/helper.go`.
@@ -19,7 +18,6 @@ Key implementation points
 
 Init(), Generate(), Post() details
 -----------------------------------------
-
 Init()
 - Checks for the Firebase CLI (`firebase`) on PATH. If missing it offers to install it globally via `npm install -g firebase-tools` (interactive prompt).
 - If `FIREBASE_TOKEN` is set the stack validates it using `firebase projects:list --non-interactive`; otherwise it detects an active session or prompts the user to run `firebase login` interactively (with browser flow via `RunCmdLive`).

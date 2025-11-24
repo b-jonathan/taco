@@ -6,7 +6,7 @@ type InitParams struct {
 	Remote       string
 	Private      bool
 	Database_URI string
-	UseGitHub 	 bool
+	UseGitHub    bool
 }
 
 type Step struct {
