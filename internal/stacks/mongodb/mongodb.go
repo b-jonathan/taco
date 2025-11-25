@@ -146,7 +146,7 @@ func (mongodb) Generate(ctx context.Context, opts *Options) error {
 	outputDir := filepath.Join(backendDir, "src")
 
 	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
-		return fmt.Errorf("generate mongodb express templates: %w", err)
+		return fmt.Errorf("generate mongodb templates: %w", err)
 	}
 
 	indexPath := filepath.Join(backendDir, "src", "index.ts")
