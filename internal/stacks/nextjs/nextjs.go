@@ -72,41 +72,14 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 
 func (nextjs) Generate(ctx context.Context, opts *Options) error {
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	eslintPath := filepath.Join(frontendDir, "eslint.config.mjs")
-	eslintContent, err := fsutil.RenderTemplate("nextjs/eslint.config.mjs.tmpl")
-	if err != nil {
-		return err
-	}
-	eslint := fsutil.FileInfo{
-		Path:    eslintPath,
-		Content: eslintContent,
-	}
-	prettierPath := filepath.Join(frontendDir, ".prettierrc.json")
-	prettierContent, err := fsutil.RenderTemplate("nextjs/.prettierrc.json.tmpl")
-	if err != nil {
-		return err
+
+	templateDir := "nextjs"
+	outputDir := filepath.Join(frontendDir)
+
+	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
+		return fmt.Errorf("generate nextjs templates: %w", err)
 	}
 
-	prettier := fsutil.FileInfo{
-		Path:    prettierPath,
-		Content: prettierContent,
-	}
-
-	prettierIgnorePath := filepath.Join(frontendDir, ".prettierignore")
-	prettierIgnoreContent, err := fsutil.RenderTemplate("nextjs/.prettierignore.tmpl")
-	if err != nil {
-		return err
-	}
-
-	prettierIgnore := fsutil.FileInfo{
-		Path:    prettierIgnorePath,
-		Content: prettierIgnoreContent,
-	}
-	files := []fsutil.FileInfo{eslint, prettier, prettierIgnore}
-
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
-		return fmt.Errorf("write files: %w", err)
-	}
 	packageParams := nodepkg.InitPackageParams{
 		Name: "express",
 		Main: "dist/index.js",
@@ -140,18 +113,6 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}
-	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
-	pageContent, err := fsutil.RenderTemplate("nextjs/page.tsx.tmpl")
-	if err != nil {
-		return err
-	}
-	page := fsutil.FileInfo{
-		Path:    pagePath,
-		Content: pageContent,
-	}
 
-	if err := fsutil.WriteFile(page); err != nil {
-		return err
-	}
 	return nil
 }

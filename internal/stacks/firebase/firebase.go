@@ -16,14 +16,14 @@ import (
 type Stack = stacks.Stack
 type Options = stacks.Options
 
-type express struct{}
+type firebase struct{}
 
-func New() Stack { return &express{} }
+func New() Stack { return &firebase{} }
 
-func (express) Type() string { return "auth" }
-func (express) Name() string { return "firebase" }
+func (firebase) Type() string { return "auth" }
+func (firebase) Name() string { return "firebase" }
 
-func (express) Init(ctx context.Context, opts *Options) error {
+func (firebase) Init(ctx context.Context, opts *Options) error {
 
 	if _, err := exec.LookPath("firebase"); err != nil {
 		fmt.Println("Firebase CLI not found.")
@@ -129,120 +129,29 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (express) Generate(ctx context.Context, opts *Options) error {
-
+func (firebase) Generate(ctx context.Context, opts *Options) error {
 	if !fsutil.ValidateDependency("firebase", opts.Frontend) {
 		return fmt.Errorf("firebase cannot be used with frontend '%s'", opts.Frontend)
 	}
 
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	srcDir := filepath.Join(frontendDir, "src")
+
 	if err := execx.RunCmd(ctx, frontendDir, "npm install firebase"); err != nil {
 		return fmt.Errorf("npm install firebase: %w", err)
 	}
-	files := []fsutil.FileInfo{}
 
-	// --- app/components/Header.tsx ---
-	headerPath := filepath.Join(srcDir, "app", "components", "Header.tsx")
-	headerContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/components/Header.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render Header.tsx: %w", err)
-	}
-	header := fsutil.FileInfo{
-		Path:    headerPath,
-		Content: headerContent,
-	}
+	templateDir := "firebase/nextjs"
+	outputDir := filepath.Join(frontendDir, "src")
 
-	// --- app/home/page.tsx ---
-	homePagePath := filepath.Join(srcDir, "app", "home", "page.tsx")
-	homePageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/home/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render home/page.tsx: %w", err)
-	}
-	homePage := fsutil.FileInfo{
-		Path:    homePagePath,
-		Content: homePageContent,
-	}
-
-	// --- app/login/page.tsx ---
-	loginPagePath := filepath.Join(srcDir, "app", "login", "page.tsx")
-	loginPageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/login/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render login/page.tsx: %w", err)
-	}
-	loginPage := fsutil.FileInfo{
-		Path:    loginPagePath,
-		Content: loginPageContent,
-	}
-
-	// --- app/register/page.tsx ---
-	registerPagePath := filepath.Join(srcDir, "app", "register", "page.tsx")
-	registerPageContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/register/page.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render register/page.tsx: %w", err)
-	}
-	registerPage := fsutil.FileInfo{
-		Path:    registerPagePath,
-		Content: registerPageContent,
-	}
-
-	// --- app/layout.tsx
-	layoutPath := filepath.Join(srcDir, "app", "layout.tsx")
-	layoutContent, err := fsutil.RenderTemplate("firebase/nextjs/src/app/layout.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render Layout.tsx: %w", err)
-	}
-	layout := fsutil.FileInfo{
-		Path:    layoutPath,
-		Content: layoutContent,
-	}
-	// --- context/authContext/index.tsx ---
-	authContextPath := filepath.Join(srcDir, "context", "authContext", "index.tsx")
-	authContextContent, err := fsutil.RenderTemplate("firebase/nextjs/src/context/authContext/index.tsx.tmpl")
-	if err != nil {
-		return fmt.Errorf("render authContext/index.tsx: %w", err)
-	}
-	authContext := fsutil.FileInfo{
-		Path:    authContextPath,
-		Content: authContextContent,
-	}
-
-	// --- firebase/auth.ts ---
-	authPath := filepath.Join(srcDir, "firebase", "auth.ts")
-	authContent, err := fsutil.RenderTemplate("firebase/nextjs/src/firebase/auth.ts.tmpl")
-	if err != nil {
-		return fmt.Errorf("render firebase/auth.ts: %w", err)
-	}
-	auth := fsutil.FileInfo{
-		Path:    authPath,
-		Content: authContent,
-	}
-
-	// --- firebase/firebase.ts ---
-	firebasePath := filepath.Join(srcDir, "firebase", "firebase.ts")
-	firebaseContent, err := fsutil.RenderTemplate("firebase/nextjs/src/firebase/firebase.ts.tmpl")
-	if err != nil {
-		return fmt.Errorf("render firebase/firebase.ts: %w", err)
-	}
-	firebaseFile := fsutil.FileInfo{
-		Path:    firebasePath,
-		Content: firebaseContent,
-	}
-
-	files = append(files,
-		header, homePage, loginPage, registerPage, layout,
-		authContext, auth, firebaseFile,
-	)
-
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
-		return fmt.Errorf("write firebase nextjs files: %w", err)
+	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
+		return fmt.Errorf("generate firebase nextjs templates: %w", err)
 	}
 
 	fmt.Println("Firebase Next.js frontend files successfully generated under frontend/src/")
 	return nil
 }
 
-func (express) Post(ctx context.Context, opts *Options) error {
+func (firebase) Post(ctx context.Context, opts *Options) error {
 	// Target the .gitignore inside the frontend directory
 	gitignorePath := filepath.Join(opts.ProjectRoot, "frontend", ".gitignore")
 	if err := fsutil.EnsureFile(gitignorePath); err != nil {
