@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/b-jonathan/taco/internal/execx"
+	"github.com/b-jonathan/taco/internal/fsutil"
 )
 
 // TODO: There is absolutely no reason for init and push to be in one function, gonna have to refactor this for sure
@@ -14,7 +15,7 @@ import (
 func Init(ctx context.Context, projectRoot string) error {
 
 	// If already a repo, skip init
-	if _, err := os.Stat(filepath.Join(projectRoot, ".git")); os.IsNotExist(err) {
+	if _, err := fsutil.Fs.Stat(filepath.Join(projectRoot, ".git")); os.IsNotExist(err) {
 		if err := execx.RunCmd(ctx, projectRoot, "git init"); err != nil {
 			return fmt.Errorf("git init: %w", err)
 		}
