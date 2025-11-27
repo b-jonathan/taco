@@ -3,7 +3,6 @@ package nextjs
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,21 +10,28 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 )
 
 type Stack = stacks.Stack
 type Options = stacks.Options
 
-type nextjs struct{}
+type nextjs struct {
+	Fs afero.Fs
+}
 
-func New() Stack { return &nextjs{} }
+func New() Stack {
+	return &nextjs{
+		Fs: afero.NewOsFs(),
+	}
+}
 
 func (nextjs) Type() string { return "frontend" }
 
 func (nextjs) Name() string { return "express" }
 
-func (nextjs) Init(ctx context.Context, opts *Options) error {
-	if err := os.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
+func (s *nextjs) Init(ctx context.Context, opts *Options) error {
+	if err := s.Fs.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 	// 1) Scaffold Next.js in TS, without ESLint, noninteractive
@@ -70,7 +76,7 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (nextjs) Generate(ctx context.Context, opts *Options) error {
+func (s *nextjs) Generate(ctx context.Context, opts *Options) error {
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
 	eslintPath := filepath.Join(frontendDir, "eslint.config.mjs")
 	eslintContent, err := fsutil.RenderTemplate("nextjs/eslint.config.mjs.tmpl")
@@ -104,7 +110,7 @@ func (nextjs) Generate(ctx context.Context, opts *Options) error {
 	}
 	files := []fsutil.FileInfo{eslint, prettier, prettierIgnore}
 
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
+	if err := fsutil.WriteMultipleFiles(s.Fs, files); err != nil {
 		return fmt.Errorf("write files: %w", err)
 	}
 	packageParams := nodepkg.InitPackageParams{
@@ -115,33 +121,33 @@ func (nextjs) Generate(ctx context.Context, opts *Options) error {
 			"lint-fix":   "(next lint --fix || true) && prettier --write .",
 		}}
 
-	if err := nodepkg.InitPackage(frontendDir, packageParams); err != nil {
+	if err := nodepkg.InitPackage(s.Fs, frontendDir, packageParams); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
 
 	return nil
 }
 
-func (nextjs) Post(ctx context.Context, opts *Options) error {
+func (s *nextjs) Post(ctx context.Context, opts *Options) error {
 	// Create an env placeholder
 
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
 	envPath := filepath.Join(frontendDir, ".env.local")
-	if err := fsutil.EnsureFile(envPath); err != nil {
+	if err := fsutil.EnsureFile(s.Fs, envPath); err != nil {
 		return fmt.Errorf("ensure .env.local: %w", err)
 	}
 
 	dir := filepath.Dir(envPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := s.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000	
-		`
-	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
+	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
+        `
+	if err := afero.WriteFile(s.Fs, envPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}
 	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
-	pageContent, err := fsutil.RenderTemplate("nextjs/page.tsx.tmpl")
+	pageContent, err := fsutil.RenderTemplate("nextjs/src/page.tsx.tmpl")
 	if err != nil {
 		return err
 	}
@@ -150,7 +156,7 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 		Content: pageContent,
 	}
 
-	if err := fsutil.WriteFile(page); err != nil {
+	if err := fsutil.WriteFile(s.Fs, page); err != nil {
 		return err
 	}
 	return nil

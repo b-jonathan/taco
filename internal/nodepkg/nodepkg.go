@@ -2,13 +2,14 @@ package nodepkg
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
-func InitPackage(dir string, params InitPackageParams) error {
+func InitPackage(fsys afero.Fs, dir string, params InitPackageParams) error {
 	path := filepath.Join(dir, "package.json")
-	b, err := os.ReadFile(path)
+	b, err := afero.ReadFile(fsys, path)
 	if err != nil {
 		return err
 	}
@@ -42,5 +43,5 @@ func InitPackage(dir string, params InitPackageParams) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, out, 0o644)
+	return afero.WriteFile(fsys, path, out, 0o644)
 }

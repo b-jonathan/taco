@@ -9,9 +9,10 @@ import (
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
+	"github.com/spf13/afero"
 )
 
-func createCredentials(ctx context.Context, projectRoot string, appName string) error {
+func createCredentials(ctx context.Context, fsys afero.Fs, projectRoot string, appName string) error {
 	projectID := fmt.Sprintf("%s-taco", appName)
 	fmt.Printf("Fetching Firebase Web App credentials for project '%s'...\n", projectID)
 
@@ -43,10 +44,10 @@ func createCredentials(ctx context.Context, projectRoot string, appName string) 
 	}
 
 	envPath := filepath.Join(projectRoot, "frontend", ".env.local")
-	if err := fsutil.EnsureFile(envPath); err != nil {
+	if err := fsutil.EnsureFile(fsys, envPath); err != nil {
 		return fmt.Errorf("ensure .env.local: %w", err)
 	}
-	if err := fsutil.AppendUniqueLines(envPath, lines); err != nil {
+	if err := fsutil.AppendUniqueLines(fsys, envPath, lines); err != nil {
 		return fmt.Errorf("append firebase env vars: %w", err)
 	}
 

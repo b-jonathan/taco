@@ -3,7 +3,6 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -20,9 +20,15 @@ import (
 type Stack = stacks.Stack
 type Options = stacks.Options
 
-type mongodb struct{}
+type mongodb struct {
+	Fs afero.Fs
+}
 
-func New() Stack { return &mongodb{} }
+func New() Stack {
+	return &mongodb{
+		Fs: afero.NewOsFs(),
+	}
+}
 
 func (mongodb) Type() string { return "database" }
 func (mongodb) Name() string { return "mongodb" }
@@ -132,7 +138,7 @@ func (mongodb) Init(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (mongodb) Generate(ctx context.Context, opts *Options) error {
+func (s *mongodb) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	if err := execx.RunCmd(ctx, backendDir, "npm install mongodb"); err != nil {
 		return fmt.Errorf("npm install mongodb: %w", err)
@@ -151,12 +157,14 @@ func (mongodb) Generate(ctx context.Context, opts *Options) error {
 		Content: clientContent,
 	}
 
-	if err := fsutil.WriteFile(client); err != nil {
+	// Pass s.Fs
+	if err := fsutil.WriteFile(s.Fs, client); err != nil {
 		return err
 	}
 
 	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	indexContent, err := os.ReadFile(indexPath)
+	// Use s.Fs to read file
+	indexContent, err := afero.ReadFile(s.Fs, indexPath)
 	if err != nil {
 		return fmt.Errorf("read index.ts: %w", err)
 	}
@@ -181,10 +189,11 @@ func (mongodb) Generate(ctx context.Context, opts *Options) error {
 		Path:    indexPath,
 		Content: []byte(src),
 	}
-	return fsutil.WriteFile(index)
+	// Pass s.Fs
+	return fsutil.WriteFile(s.Fs, index)
 }
 
-func (mongodb) Post(ctx context.Context, opts *Options) error {
+func (s *mongodb) Post(ctx context.Context, opts *Options) error {
 	// gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
 	// if err := fsutil.EnsureFile(gitignorePath); err != nil {
 	// 	return fmt.Errorf("ensure gitignore file: %w", err)
@@ -200,6 +209,7 @@ func (mongodb) Post(ctx context.Context, opts *Options) error {
 	// TODO: Make this not as scuffed lol
 	content := fmt.Sprintf(`
 	MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
-	_ = fsutil.AppendUniqueLines(path, []string{content})
+	// Pass s.Fs
+	_ = fsutil.AppendUniqueLines(s.Fs, path, []string{content})
 	return nil
 }

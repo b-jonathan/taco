@@ -3,7 +3,6 @@ package express
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,23 +10,30 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 )
 
 type Stack = stacks.Stack
 type Options = stacks.Options
 
-type express struct{}
+type express struct {
+	Fs afero.Fs
+}
 
-func New() Stack { return &express{} }
+func New() Stack {
+	return &express{
+		Fs: afero.NewOsFs(),
+	}
+}
 
 func (express) Type() string { return "backend" }
 func (express) Name() string { return "express" }
 
-func (express) Init(ctx context.Context, opts *Options) error {
+func (s *express) Init(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	srcDir := filepath.Join(backendDir, "src")
 
-	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+	if err := s.Fs.MkdirAll(srcDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
@@ -64,7 +70,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (express) Generate(ctx context.Context, opts *Options) error {
+func (s *express) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	files := []fsutil.FileInfo{}
 	tsconfigPath := filepath.Join(backendDir, "tsconfig.json")
@@ -120,7 +126,7 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 	}
 	files = append(files, tsconfig, index, eslint, prettier, prettierIgnore)
 
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
+	if err := fsutil.WriteMultipleFiles(s.Fs, files); err != nil {
 		return fmt.Errorf("write files: %w", err)
 	}
 
@@ -135,31 +141,31 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 			"lint-fix":   "eslint . --fix && prettier --write .",
 		}}
 
-	if err := nodepkg.InitPackage(backendDir, packageParams); err != nil {
+	if err := nodepkg.InitPackage(s.Fs, backendDir, packageParams); err != nil {
 		return fmt.Errorf("write src/index.ts: %w", err)
 	}
 	return nil
 
 }
 
-func (express) Post(ctx context.Context, opts *Options) error {
+func (s *express) Post(ctx context.Context, opts *Options) error {
 	gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
+	if err := fsutil.EnsureFile(s.Fs, gitignorePath); err != nil {
 		return fmt.Errorf("ensure gitignore file: %w", err)
 	}
 
-	_ = fsutil.AppendUniqueLines(gitignorePath,
+	_ = fsutil.AppendUniqueLines(s.Fs, gitignorePath,
 		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 	path := filepath.Join(opts.ProjectRoot, "backend", ".env")
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := s.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 	content := `
-		PORT=4000
-		FRONTEND_ORIGIN=http://localhost:3000
-		`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+        PORT=4000
+        FRONTEND_ORIGIN=http://localhost:3000
+        `
+	if err := afero.WriteFile(s.Fs, path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil

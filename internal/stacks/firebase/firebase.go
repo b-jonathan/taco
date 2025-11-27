@@ -11,19 +11,26 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 )
 
 type Stack = stacks.Stack
 type Options = stacks.Options
 
-type express struct{}
+type firebase struct {
+	Fs afero.Fs
+}
 
-func New() Stack { return &express{} }
+func New() Stack {
+	return &firebase{
+		Fs: afero.NewOsFs(),
+	}
+}
 
-func (express) Type() string { return "auth" }
-func (express) Name() string { return "firebase" }
+func (firebase) Type() string { return "auth" }
+func (firebase) Name() string { return "firebase" }
 
-func (express) Init(ctx context.Context, opts *Options) error {
+func (s *firebase) Init(ctx context.Context, opts *Options) error {
 
 	if _, err := exec.LookPath("firebase"); err != nil {
 		fmt.Println("Firebase CLI not found.")
@@ -118,7 +125,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	done, err := prompt.CreateSurveyConfirm(
 		"Have you finished enabling the recommended providers?",
 		prompt.AskOpts{Default: false},
-	)
+    )
 	if err != nil {
 		return fmt.Errorf("failed to confirm provider completion: %w", err)
 	}
@@ -129,7 +136,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (express) Generate(ctx context.Context, opts *Options) error {
+func (s *firebase) Generate(ctx context.Context, opts *Options) error {
 
 	if !fsutil.ValidateDependency("firebase", opts.Frontend) {
 		return fmt.Errorf("firebase cannot be used with frontend '%s'", opts.Frontend)
@@ -234,7 +241,8 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 		authContext, auth, firebaseFile,
 	)
 
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
+	// Use s.Fs
+	if err := fsutil.WriteMultipleFiles(s.Fs, files); err != nil {
 		return fmt.Errorf("write firebase nextjs files: %w", err)
 	}
 
@@ -242,15 +250,17 @@ func (express) Generate(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (express) Post(ctx context.Context, opts *Options) error {
+func (s *firebase) Post(ctx context.Context, opts *Options) error {
 	// Target the .gitignore inside the frontend directory
 	gitignorePath := filepath.Join(opts.ProjectRoot, "frontend", ".gitignore")
-	if err := fsutil.EnsureFile(gitignorePath); err != nil {
+	// Use s.Fs
+	if err := fsutil.EnsureFile(s.Fs, gitignorePath); err != nil {
 		return fmt.Errorf("ensure frontend gitignore file: %w", err)
 	}
 
 	// Append only Firebase-specific ignores
-	_ = fsutil.AppendUniqueLines(gitignorePath, []string{
+	// Use s.Fs
+	_ = fsutil.AppendUniqueLines(s.Fs, gitignorePath, []string{
 		"# firebase",
 		".firebase/",
 		".firebasehosting.*",
@@ -260,7 +270,8 @@ func (express) Post(ctx context.Context, opts *Options) error {
 	})
 
 	// Generate and append Firebase credentials to .env.local
-	if err := createCredentials(ctx, opts.ProjectRoot, opts.AppName); err != nil {
+	// Inject s.Fs into createCredentials
+	if err := createCredentials(ctx, s.Fs, opts.ProjectRoot, opts.AppName); err != nil {
 		return fmt.Errorf("create credentials: %w", err)
 	}
 
