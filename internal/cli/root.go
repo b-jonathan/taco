@@ -14,7 +14,6 @@ import (
 	"github.com/b-jonathan/taco/internal/logx"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
-	github "github.com/google/go-github/v55/github"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -252,65 +251,33 @@ func initCmd() *cobra.Command {
 
 			// This is additional templates
 			if params.UseGitHub {
-				fmt.Println("Starting gh command")
-				// client, err := gh.FromContext(cmd.Context())
-				// if err != nil {
-				// 	return err
-				// }
-				client, err := gh.EnsureClient(cmd.Context())
+				fmt.Println("Creating GitHub repository...")
+			
+				repo, err := gh.CreateRepo(cmd.Context(), gh.CreateRepoOptions{
+					Name:        params.Name,
+					Private:     params.Private,
+					Description: params.Description,
+				})
 				if err != nil {
 					return err
 				}
-				cmd.SetContext(gh.WithContext(cmd.Context(), client))
-				fmt.Println("GitHub client initialized")
-				ghCtx := context.Background()
-				ghCtx, cancel := context.WithTimeout(ghCtx, 100*time.Second)
-				defer cancel()
-
-				newRepo := &github.Repository{
-					Name:        github.String(params.Name),
-					Private:     github.Bool(params.Private),
-					Description: github.String(params.Description),
-				}
-
-				repo, _, err := client.Repositories.Create(ghCtx, "", newRepo)
-				if err != nil {
-					return fmt.Errorf("create repo: %w", err)
-				}
-
-				fmt.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+			
+				fmt.Println("Created:", repo.GetHTMLURL())
+			
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
 				}
-				fmt.Println("Committing and Pushing to Github...")
-				if err := git.InitAndPush(ghCtx, projectRoot, remoteURL, "initial-commit"); err != nil {
-					owner := ""
-					if repo.GetOwner() != nil {
-						owner = repo.GetOwner().GetLogin()
-					}
-
-					// Fallback
-					if owner == "" {
-						parts := strings.Split(repo.GetFullName(), "/")
-						if len(parts) == 2 {
-							owner = parts[0]
-						}
-					}
-
-					if owner != "" {
-						if _, delErr := client.Repositories.Delete(ghCtx, owner, repo.GetName()); delErr != nil {
-							logx.Warnf("failed to delete repo after push failure: %v", delErr)
-						}
-					} else {
-						logx.Warnf("could not determine owner for cleanup of repo %q", repo.GetFullName())
-					}
-
-					return fmt.Errorf("git init/push failed: %w", err)
+			
+				fmt.Println("Committing and pushing...")
+			
+				if err := git.InitAndPush(cmd.Context(), projectRoot, remoteURL, "initial-commit"); err != nil {
+					// cleanup
+					_ = gh.DeleteRepo(cmd.Context(), repo)
+					return fmt.Errorf("git push failed: %w", err)
 				}
+			
 				fmt.Println("Pushed:", repo.GetHTMLURL())
-			} else {
-				fmt.Println("Skipping GitHub repo creation")
 			}
 
 			fmt.Println("Time Taken:", time.Since(start))
