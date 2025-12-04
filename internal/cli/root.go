@@ -77,52 +77,6 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 		params.Name = name
 	}
 
-	if f := cmd.Flags().Lookup("private"); f != nil && f.Changed {
-		b, _ := strconv.ParseBool(f.Value.String())
-		params.Private = b
-	} else {
-		b, err := prompt.CreateSurveyConfirm("Make repository private?", prompt.AskOpts{
-			Default: false,
-		})
-		if err != nil && prompt.IsTTY() {
-			return params, err
-		}
-		if err == nil {
-			params.Private = b
-		}
-	}
-
-	if v, _ := cmd.Flags().GetString("remote"); v != "" {
-		params.Remote = v
-	} else {
-		if prompt.IsTTY() {
-			r, err := prompt.CreateSurveySelect("Remote URL type", []string{"ssh", "https"}, prompt.AskOpts{
-				Default:  "ssh",
-				PageSize: 2,
-			})
-			if err != nil {
-				return params, err
-			}
-			params.Remote = r
-		}
-	}
-
-	if v, _ := cmd.Flags().GetString("description"); v != "" {
-		params.Description = v
-	} else {
-		// optional field; allow empty in non-TTY
-		if prompt.IsTTY() {
-			desc, err := prompt.CreateSurveyInput("Repository description", prompt.AskOpts{
-				Default: "",
-				Help:    "you can leave this empty",
-			})
-			if err != nil {
-				return params, err
-			}
-			params.Description = desc
-		}
-	}
-
 	if f := cmd.Flags().Lookup("github"); f != nil && f.Changed {
 		b, _ := strconv.ParseBool(f.Value.String())
 		params.UseGitHub = b
@@ -141,6 +95,55 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 			params.UseGitHub = useGH
 		}
 	}
+
+	if params.UseGitHub {
+		if f := cmd.Flags().Lookup("private"); f != nil && f.Changed {
+			b, _ := strconv.ParseBool(f.Value.String())
+			params.Private = b
+		} else {
+			b, err := prompt.CreateSurveyConfirm("Make repository private?", prompt.AskOpts{
+				Default: false,
+			})
+			if err != nil && prompt.IsTTY() {
+				return params, err
+			}
+			if err == nil {
+				params.Private = b
+			}
+		}
+
+		if v, _ := cmd.Flags().GetString("remote"); v != "" {
+			params.Remote = v
+		} else {
+			if prompt.IsTTY() {
+				r, err := prompt.CreateSurveySelect("Remote URL type", []string{"ssh", "https"}, prompt.AskOpts{
+					Default:  "ssh",
+					PageSize: 2,
+				})
+				if err != nil {
+					return params, err
+				}
+				params.Remote = r
+			}
+		}
+
+		if v, _ := cmd.Flags().GetString("description"); v != "" {
+			params.Description = v
+		} else {
+			// optional field; allow empty in non-TTY
+			if prompt.IsTTY() {
+				desc, err := prompt.CreateSurveyInput("Repository description", prompt.AskOpts{
+					Default: "",
+					Help:    "you can leave this empty",
+				})
+				if err != nil {
+					return params, err
+				}
+				params.Description = desc
+			}
+		}
+	}
+	
 
 	return params, nil
 }
