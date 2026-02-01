@@ -141,7 +141,7 @@ func (firebase) Generate(ctx context.Context, opts *Options) error {
 	}
 
 	templateDir := "firebase/nextjs"
-	outputDir := filepath.Join(frontendDir, "src")
+	outputDir := filepath.Join(frontendDir)
 
 	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
 		return fmt.Errorf("generate firebase nextjs templates: %w", err)
