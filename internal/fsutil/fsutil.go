@@ -12,18 +12,21 @@ import (
 	"text/template"
 
 	"github.com/b-jonathan/taco/internal/stacks/templates"
+	"github.com/spf13/afero"
 )
+
+var Fs = afero.NewOsFs()
 
 // TODO: Some of these were completely vibe coded, just need to refactor a bit to make more consistent
 func EnsureFile(path string) error {
 	// Create parent directories if needed.
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := Fs.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
 	// Create the file if missing. O_EXCL prevents clobbering if a race happens.
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL, 0o644)
+	f, err := Fs.OpenFile(path, os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
-		// If it already exists, that’s fine.
+		// If it already exists, that's fine.
 		if os.IsExist(err) {
 			return nil
 		}
@@ -40,7 +43,7 @@ func WriteFile(file FileInfo) error {
 	}
 	// log.Println("Ensuring file complete")
 	// log.Printf("Writing File: %s", path)
-	if err := os.WriteFile(file.Path, file.Content, 0o644); err != nil {
+	if err := afero.WriteFile(Fs, file.Path, file.Content, 0o644); err != nil {
 		return fmt.Errorf("write %s file: %w", filename, err)
 	}
 	// log.Println("Writing file complete")
@@ -57,7 +60,7 @@ func WriteMultipleFiles(files []FileInfo) error {
 }
 
 func AppendUniqueLines(path string, lines []string) error {
-	buf, _ := os.ReadFile(path)
+	buf, _ := afero.ReadFile(Fs, path)
 	for _, line := range lines {
 		if !bytes.Contains(buf, []byte(line+"\n")) && !bytes.Equal(bytes.TrimSpace(buf), []byte(line)) {
 			if len(buf) > 0 && buf[len(buf)-1] != '\n' {
@@ -66,7 +69,7 @@ func AppendUniqueLines(path string, lines []string) error {
 			buf = append(buf, []byte(line+"\n")...)
 		}
 	}
-	return os.WriteFile(path, buf, 0o644)
+	return afero.WriteFile(Fs, path, buf, 0o644)
 }
 
 // in a shared package or file
@@ -164,10 +167,10 @@ func GenerateFromTemplateDir(templateRoot, outputRoot string) error {
 			return fmt.Errorf("render template %s: %w", path, err)
 		}
 
-		if err := os.MkdirAll(filepath.Dir(finalPath), 0755); err != nil {
+		if err := Fs.MkdirAll(filepath.Dir(finalPath), 0755); err != nil {
 			return err
 		}
 
-		return os.WriteFile(finalPath, content, 0644)
+		return afero.WriteFile(Fs, finalPath, content, 0644)
 	})
 }
