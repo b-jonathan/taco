@@ -277,7 +277,7 @@ func initCmd() *cobra.Command {
 					return fmt.Errorf("create repo: %w", err)
 				}
 
-				fmt.Fprintln(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+				fmt.Println("Created:", repo.GetHTMLURL())
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
