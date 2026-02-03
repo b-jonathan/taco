@@ -3,7 +3,6 @@ package nextjs
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 )
 
 type Stack = stacks.Stack
@@ -25,7 +25,7 @@ func (nextjs) Type() string { return "frontend" }
 func (nextjs) Name() string { return "nextjs" }
 
 func (nextjs) Init(ctx context.Context, opts *Options) error {
-	if err := os.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 	// 1) Scaffold Next.js in TS, without ESLint, noninteractive
@@ -104,11 +104,11 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 	}
 
 	dir := filepath.Dir(envPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000`
-	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
+	if err := afero.WriteFile(fsutil.Fs, envPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}
 
