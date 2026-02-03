@@ -142,7 +142,6 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 			}
 		}
 	}
-	
 
 	return params, nil
 }
@@ -199,6 +198,8 @@ func initCmd() *cobra.Command {
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
 				Frontend:    stack["frontend"],
+				Backend:     stack["backend"],
+				Database:    stack["database"],
 				FrontendURL: "http://localhost:3000",
 				BackendURL:  "http://localhost:4000",
 				Port:        4000,
@@ -252,7 +253,7 @@ func initCmd() *cobra.Command {
 			// This is additional templates
 			if params.UseGitHub {
 				fmt.Println("Creating GitHub repository...")
-			
+
 				repo, err := gh.CreateRepo(cmd.Context(), gh.CreateRepoOptions{
 					Name:        params.Name,
 					Private:     params.Private,
@@ -261,22 +262,22 @@ func initCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-			
+
 				fmt.Println("Created:", repo.GetHTMLURL())
-			
+
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
 				}
-			
+
 				fmt.Println("Committing and pushing...")
-			
+
 				if err := git.InitAndPush(cmd.Context(), projectRoot, remoteURL, "initial-commit"); err != nil {
 					// cleanup
 					_ = gh.DeleteRepo(cmd.Context(), repo)
 					return fmt.Errorf("git push failed: %w", err)
 				}
-			
+
 				fmt.Println("Pushed:", repo.GetHTMLURL())
 			}
 

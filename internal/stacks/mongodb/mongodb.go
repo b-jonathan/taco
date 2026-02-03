@@ -134,7 +134,9 @@ func (mongodb) Init(ctx context.Context, opts *Options) error {
 
 func (mongodb) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
-
+	if !fsutil.ValidateDependency("mongodb", opts.Backend) {
+		return fmt.Errorf("mongodb cannot be used with backend '%s'", opts.Backend)
+	}
 	if err := execx.RunCmd(ctx, backendDir, "npm install mongodb"); err != nil {
 		return fmt.Errorf("npm install mongodb: %w", err)
 	}
@@ -192,8 +194,7 @@ func (mongodb) Post(ctx context.Context, opts *Options) error {
 	// 	return fmt.Errorf("mkdir %s: %w", dir, err)
 	// }
 	// TODO: Make this not as scuffed lol
-	content := fmt.Sprintf(`
-	MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
+	content := fmt.Sprintf(`MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
 	_ = fsutil.AppendUniqueLines(path, []string{content})
 	return nil
 }

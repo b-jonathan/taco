@@ -71,14 +71,14 @@ func CreateSurveyMultiSelect(message string, choices []string, options AskOpts) 
 		return nil, fmt.Errorf("options cannot be empty")
 	}
 
-	prompt := &survey.Select{
+	prompt := &survey.MultiSelect{
 		Message:  message,
 		Options:  choices, //choices, this is a bit weird AHHAHA
 		Help:     options.Help,
 		PageSize: options.PageSize,
 	}
 
-	if v, ok := options.Default.(string); ok {
+	if v, ok := options.Default.([]string); ok {
 		prompt.Default = v
 	}
 	return askManyString(prompt, options)
