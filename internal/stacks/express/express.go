@@ -8,6 +8,7 @@ import (
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
+	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/spf13/afero"
 
 	"github.com/b-jonathan/taco/internal/stacks"
@@ -55,6 +56,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 		"eslint-plugin-n",
 		"eslint-config-prettier",
 		"prettier",
+		"tsx",
 	}
 	//TODO: Prob can Refactor this somewhere, like keeping track of depencies to be installed, not urgent tho
 	if err := execx.RunCmd(ctx, backendDir, "npm install -D "+strings.Join(devDependencies, " ")); err != nil {
@@ -88,12 +90,28 @@ func (express) Post(ctx context.Context, opts *Options) error {
 	if err := fsutil.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	content := `
-        PORT=4000
-        FRONTEND_ORIGIN=http://localhost:3000
-        `
+	content := `PORT=4000
+FRONTEND_ORIGIN=http://localhost:3000`
 	if err := afero.WriteFile(fsutil.Fs, path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
+
+	params := nodepkg.InitPackageParams{
+		Name: "backend",
+		Main: "src/index.ts",
+		Scripts: map[string]string{
+			"build":      "tsc -p tsconfig.json",
+			"dev":        "tsx watch src/index.ts",
+			"lint-check": "eslint . && prettier --check .",
+			"lint-fix":   "eslint . --fix && prettier --write .",
+			"start":      "node dist/index.js",
+			"test":       "echo \"Error: no test specified\" && exit 1",
+		},
+	}
+	backendDir := filepath.Join(opts.ProjectRoot, "backend")
+	if err := nodepkg.InitPackage(backendDir, params); err != nil {
+		return fmt.Errorf("init express package.json: %w", err)
+	}
+
 	return nil
 }

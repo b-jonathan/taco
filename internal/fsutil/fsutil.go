@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -106,11 +107,13 @@ func ValidateDependency(stack, dependency string) bool {
 	if stack == "none" || dependency == "none" {
 		return true
 	}
-	stackPath := filepath.Join("internal", "stacks", "templates", stack)
+	if stack == "" || dependency == "" {
+		return false
+	}
 
-	info, err := os.ReadDir(stackPath)
+	info, err := templates.FS.ReadDir(stack)
 	if err != nil {
-		fmt.Printf("path does not exist %s\n", stackPath)
+		fmt.Printf("embedded path does not exist %s\n", stack)
 		return false
 	}
 	//check if subfolder is "src", "db" or doesn't exist -> true.
@@ -129,8 +132,8 @@ func ValidateDependency(stack, dependency string) bool {
 		return true
 	}
 	//else, check if dependency is in subfolders of stack.
-	dependencyPath := filepath.Join(stackPath, dependency)
-	if info, err := os.Stat(dependencyPath); err == nil && info.IsDir() {
+	dependencyPath := path.Join(stack, dependency)
+	if _, err := templates.FS.ReadDir(dependencyPath); err == nil {
 		return true
 	}
 	return false

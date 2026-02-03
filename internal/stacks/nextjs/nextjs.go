@@ -22,7 +22,7 @@ func New() Stack { return &nextjs{} }
 
 func (nextjs) Type() string { return "frontend" }
 
-func (nextjs) Name() string { return "express" }
+func (nextjs) Name() string { return "nextjs" }
 
 func (nextjs) Init(ctx context.Context, opts *Options) error {
 	if err := fsutil.Fs.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
@@ -81,15 +81,14 @@ func (nextjs) Generate(ctx context.Context, opts *Options) error {
 	}
 
 	packageParams := nodepkg.InitPackageParams{
-		Name: "express",
-		Main: "dist/index.js",
+		Name: "nextjs",
 		Scripts: map[string]string{
 			"lint-check": "next lint && prettier --check .",
 			"lint-fix":   "(next lint --fix || true) && prettier --write .",
 		}}
 
 	if err := nodepkg.InitPackage(frontendDir, packageParams); err != nil {
-		return fmt.Errorf("write src/index.ts: %w", err)
+		return fmt.Errorf("init nextjs package.json: %w", err)
 	}
 
 	return nil
@@ -108,8 +107,7 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 	if err := fsutil.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
-        `
+	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000`
 	if err := afero.WriteFile(fsutil.Fs, envPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}

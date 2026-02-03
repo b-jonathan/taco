@@ -197,6 +197,8 @@ func initCmd() *cobra.Command {
 				ProjectRoot: projectRoot,
 				AppName:     params.Name,
 				Frontend:    stack["frontend"],
+				Backend:     stack["backend"],
+				Database:    stack["database"],
 				FrontendURL: "http://localhost:3000",
 				BackendURL:  "http://localhost:4000",
 				Port:        4000,
@@ -275,7 +277,7 @@ func initCmd() *cobra.Command {
 					return fmt.Errorf("create repo: %w", err)
 				}
 
-				fmt.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+				fmt.Println("Created:", repo.GetHTMLURL())
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
