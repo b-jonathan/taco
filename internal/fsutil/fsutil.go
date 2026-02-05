@@ -76,6 +76,10 @@ func WithFileLock(path string, fn func() error) error {
 	return fn()
 }
 
+func RemoveDir(path string) error {
+	return os.RemoveAll(path)
+}
+
 func RenderTemplate(tmplPath string) ([]byte, error) {
 	tmplPath = filepath.Join("internal", "stacks", "templates", tmplPath)
 	tmpl, err := template.ParseFiles(tmplPath)

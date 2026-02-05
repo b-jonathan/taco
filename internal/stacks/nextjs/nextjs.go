@@ -155,3 +155,13 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 	}
 	return nil
 }
+
+func (nextjs) Rollback(ctx context.Context, opts *Options) error {
+	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
+
+	if err := fsutil.RemoveDir(frontendDir); err != nil {
+		return fmt.Errorf("remove frontend dir: %w", err)
+	}
+
+	return nil
+}

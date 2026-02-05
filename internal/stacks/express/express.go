@@ -164,3 +164,13 @@ func (express) Post(ctx context.Context, opts *Options) error {
 	}
 	return nil
 }
+
+func (express) Rollback(ctx context.Context, opts *Options) error {
+	backendDir := filepath.Join(opts.ProjectRoot, "backend")
+
+	if err := fsutil.RemoveDir(backendDir); err != nil {
+		return fmt.Errorf("remove backend dir: %w", err)
+	}
+
+	return nil
+}
