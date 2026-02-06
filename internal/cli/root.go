@@ -14,7 +14,6 @@ import (
 	"github.com/b-jonathan/taco/internal/logx"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
-	github "github.com/google/go-github/v55/github"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -77,52 +76,6 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 		params.Name = name
 	}
 
-	if f := cmd.Flags().Lookup("private"); f != nil && f.Changed {
-		b, _ := strconv.ParseBool(f.Value.String())
-		params.Private = b
-	} else {
-		b, err := prompt.CreateSurveyConfirm("Make repository private?", prompt.AskOpts{
-			Default: false,
-		})
-		if err != nil && prompt.IsTTY() {
-			return params, err
-		}
-		if err == nil {
-			params.Private = b
-		}
-	}
-
-	if v, _ := cmd.Flags().GetString("remote"); v != "" {
-		params.Remote = v
-	} else {
-		if prompt.IsTTY() {
-			r, err := prompt.CreateSurveySelect("Remote URL type", []string{"ssh", "https"}, prompt.AskOpts{
-				Default:  "ssh",
-				PageSize: 2,
-			})
-			if err != nil {
-				return params, err
-			}
-			params.Remote = r
-		}
-	}
-
-	if v, _ := cmd.Flags().GetString("description"); v != "" {
-		params.Description = v
-	} else {
-		// optional field; allow empty in non-TTY
-		if prompt.IsTTY() {
-			desc, err := prompt.CreateSurveyInput("Repository description", prompt.AskOpts{
-				Default: "",
-				Help:    "you can leave this empty",
-			})
-			if err != nil {
-				return params, err
-			}
-			params.Description = desc
-		}
-	}
-
 	if f := cmd.Flags().Lookup("github"); f != nil && f.Changed {
 		b, _ := strconv.ParseBool(f.Value.String())
 		params.UseGitHub = b
@@ -139,6 +92,54 @@ func gatherInitParams(cmd *cobra.Command, args []string) (InitParams, error) {
 				return params, err
 			}
 			params.UseGitHub = useGH
+		}
+	}
+
+	if params.UseGitHub {
+		if f := cmd.Flags().Lookup("private"); f != nil && f.Changed {
+			b, _ := strconv.ParseBool(f.Value.String())
+			params.Private = b
+		} else {
+			b, err := prompt.CreateSurveyConfirm("Make repository private?", prompt.AskOpts{
+				Default: false,
+			})
+			if err != nil && prompt.IsTTY() {
+				return params, err
+			}
+			if err == nil {
+				params.Private = b
+			}
+		}
+
+		if v, _ := cmd.Flags().GetString("remote"); v != "" {
+			params.Remote = v
+		} else {
+			if prompt.IsTTY() {
+				r, err := prompt.CreateSurveySelect("Remote URL type", []string{"ssh", "https"}, prompt.AskOpts{
+					Default:  "ssh",
+					PageSize: 2,
+				})
+				if err != nil {
+					return params, err
+				}
+				params.Remote = r
+			}
+		}
+
+		if v, _ := cmd.Flags().GetString("description"); v != "" {
+			params.Description = v
+		} else {
+			// optional field; allow empty in non-TTY
+			if prompt.IsTTY() {
+				desc, err := prompt.CreateSurveyInput("Repository description", prompt.AskOpts{
+					Default: "",
+					Help:    "you can leave this empty",
+				})
+				if err != nil {
+					return params, err
+				}
+				params.Description = desc
+			}
 		}
 	}
 
@@ -251,65 +252,33 @@ func initCmd() *cobra.Command {
 
 			// This is additional templates
 			if params.UseGitHub {
-				fmt.Println("Starting gh command")
-				// client, err := gh.FromContext(cmd.Context())
-				// if err != nil {
-				// 	return err
-				// }
-				client, err := gh.EnsureClient(cmd.Context())
+				fmt.Println("Creating GitHub repository...")
+
+				repo, err := gh.CreateRepo(cmd.Context(), gh.CreateRepoOptions{
+					Name:        params.Name,
+					Private:     params.Private,
+					Description: params.Description,
+				})
 				if err != nil {
 					return err
 				}
-				cmd.SetContext(gh.WithContext(cmd.Context(), client))
-				fmt.Println("GitHub client initialized")
-				ghCtx := context.Background()
-				ghCtx, cancel := context.WithTimeout(ghCtx, 100*time.Second)
-				defer cancel()
-
-				newRepo := &github.Repository{
-					Name:        github.String(params.Name),
-					Private:     github.Bool(params.Private),
-					Description: github.String(params.Description),
-				}
-
-				repo, _, err := client.Repositories.Create(ghCtx, "", newRepo)
-				if err != nil {
-					return fmt.Errorf("create repo: %w", err)
-				}
 
 				fmt.Println("Created:", repo.GetHTMLURL())
+
 				remoteURL := repo.GetSSHURL()
 				if params.Remote == "https" {
 					remoteURL = repo.GetCloneURL()
 				}
-				fmt.Println("Committing and Pushing to Github...")
-				if err := git.InitAndPush(ghCtx, projectRoot, remoteURL, "initial-commit"); err != nil {
-					owner := ""
-					if repo.GetOwner() != nil {
-						owner = repo.GetOwner().GetLogin()
-					}
 
-					// Fallback
-					if owner == "" {
-						parts := strings.Split(repo.GetFullName(), "/")
-						if len(parts) == 2 {
-							owner = parts[0]
-						}
-					}
+				fmt.Println("Committing and pushing...")
 
-					if owner != "" {
-						if _, delErr := client.Repositories.Delete(ghCtx, owner, repo.GetName()); delErr != nil {
-							logx.Warnf("failed to delete repo after push failure: %v", delErr)
-						}
-					} else {
-						logx.Warnf("could not determine owner for cleanup of repo %q", repo.GetFullName())
-					}
-
-					return fmt.Errorf("git init/push failed: %w", err)
+				if err := git.InitAndPush(cmd.Context(), projectRoot, remoteURL, "initial-commit"); err != nil {
+					// cleanup
+					_ = gh.DeleteRepo(cmd.Context(), repo)
+					return fmt.Errorf("git push failed: %w", err)
 				}
+
 				fmt.Println("Pushed:", repo.GetHTMLURL())
-			} else {
-				fmt.Println("Skipping GitHub repo creation")
 			}
 
 			fmt.Println("Time Taken:", time.Since(start))

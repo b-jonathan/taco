@@ -26,7 +26,7 @@ func EnsureFile(path string) error {
 	// Create the file if missing. O_EXCL prevents clobbering if a race happens.
 	f, err := Fs.OpenFile(path, os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
-		// If it already exists, that’s fine.
+		// If it already exists, that's fine.
 		if os.IsExist(err) {
 			return nil
 		}
