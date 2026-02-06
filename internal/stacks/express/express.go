@@ -3,13 +3,13 @@ package express
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/b-jonathan/taco/internal/execx"
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/nodepkg"
+	"github.com/spf13/afero"
 
 	"github.com/b-jonathan/taco/internal/stacks"
 )
@@ -28,7 +28,7 @@ func (express) Init(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
 	srcDir := filepath.Join(backendDir, "src")
 
-	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(srcDir, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
@@ -87,12 +87,12 @@ func (express) Post(ctx context.Context, opts *Options) error {
 		[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 	path := filepath.Join(opts.ProjectRoot, "backend", ".env")
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 	content := `PORT=4000
 FRONTEND_ORIGIN=http://localhost:3000`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := afero.WriteFile(fsutil.Fs, path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 

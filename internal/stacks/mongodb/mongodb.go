@@ -3,7 +3,6 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -152,7 +152,7 @@ func (mongodb) Generate(ctx context.Context, opts *Options) error {
 	}
 
 	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	indexBytes, err := os.ReadFile(indexPath)
+	indexBytes, err := afero.ReadFile(fsutil.Fs, indexPath)
 	if err != nil {
 		return fmt.Errorf("read index.ts: %w", err)
 	}
@@ -183,15 +183,15 @@ import { connectDB } from "./db/client";`, 1)
 func (mongodb) Post(ctx context.Context, opts *Options) error {
 	// gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
 	// if err := fsutil.EnsureFile(gitignorePath); err != nil {
-	// 	return fmt.Errorf("ensure gitignore file: %w", err)
+	//  return fmt.Errorf("ensure gitignore file: %w", err)
 	// }
 
 	// _ = fsutil.AppendUniqueLines(gitignorePath,
-	// 	[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
+	//  []string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 	path := filepath.Join(opts.ProjectRoot, "backend", ".env")
 	// dir := filepath.Dir(path)
 	// if err := os.MkdirAll(dir, 0o755); err != nil {
-	// 	return fmt.Errorf("mkdir %s: %w", dir, err)
+	//  return fmt.Errorf("mkdir %s: %w", dir, err)
 	// }
 	// TODO: Make this not as scuffed lol
 	content := fmt.Sprintf(`MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)

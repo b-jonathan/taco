@@ -3,12 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/gh"
 	"github.com/b-jonathan/taco/internal/git"
 	"github.com/b-jonathan/taco/internal/logx"
@@ -161,7 +161,7 @@ func initCmd() *cobra.Command {
 			}
 
 			projectRoot := params.Name
-			if err := os.MkdirAll(projectRoot, 0o755); err != nil {
+			if err := fsutil.Fs.MkdirAll(projectRoot, 0o755); err != nil {
 				return fmt.Errorf("mkdir project root: %w", err)
 			}
 
