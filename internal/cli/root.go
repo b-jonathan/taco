@@ -179,7 +179,7 @@ func initCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "None"}, prompt.AskOpts{})
+			stack["database"], _ = prompt.CreateSurveySelect("Choose a Database Stack:\n", []string{"MongoDB", "Postgres", "None"}, prompt.AskOpts{})
 			stack["database"] = strings.ToLower(stack["database"])
 			database, err := GetFactory(stack["database"])
 			if err != nil {

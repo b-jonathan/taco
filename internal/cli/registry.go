@@ -8,16 +8,18 @@ import (
 	"github.com/b-jonathan/taco/internal/stacks/firebase"
 	"github.com/b-jonathan/taco/internal/stacks/mongodb"
 	"github.com/b-jonathan/taco/internal/stacks/nextjs"
+	"github.com/b-jonathan/taco/internal/stacks/postgresql"
 )
 
 type Stack = stacks.Stack
 
 var Registry = map[string]Stack{
-	"express":  express.New(),
-	"nextjs":   nextjs.New(),
-	"mongodb":  mongodb.New(),
-	"firebase": firebase.New(), // TODO: implement Firebase stack
-	"none":     nil,
+	"express":    express.New(),
+	"nextjs":     nextjs.New(),
+	"mongodb":    mongodb.New(),
+	"postgres":   postgresql.New(),
+	"firebase":   firebase.New(), // TODO: implement Firebase stack
+	"none":       nil,
 }
 
 func GetFactory(key string) (stacks.Stack, error) {
