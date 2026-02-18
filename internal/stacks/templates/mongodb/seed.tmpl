@@ -1,9 +1,0 @@
-app.get("/seed", async (_req, res) => {
-try {
-    const db = await connectDB();
-    const docs = await db.collection("seed_test").find({}).toArray();
-    res.json(docs);
-} catch (err) {
-    res.status(500).send("Database error");
-}
-});

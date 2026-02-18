@@ -17,6 +17,7 @@ var Registry = map[string]Stack{
 	"nextjs":   nextjs.New(),
 	"mongodb":  mongodb.New(),
 	"firebase": firebase.New(), // TODO: implement Firebase stack
+	"none":     nil,
 }
 
 func GetFactory(key string) (stacks.Stack, error) {

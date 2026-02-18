@@ -2,3 +2,35 @@
 *.pyc
 .env
 taco
+
+/.venv
+*.pyc
+.env
+taco
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Build output
+dist/
+build/
+.cache/
+.next/
+out/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Env files
+.env.local
+.env.development
+.env.production
+.env.test

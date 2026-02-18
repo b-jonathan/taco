@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/prompt"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -135,72 +135,67 @@ func (mongodb) Init(ctx context.Context, opts *Options) error {
 
 func (mongodb) Generate(ctx context.Context, opts *Options) error {
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
+	if !fsutil.ValidateDependency("mongodb", opts.Backend) {
+		return fmt.Errorf("mongodb cannot be used with backend '%s'", opts.Backend)
+	}
 	if err := execx.RunCmd(ctx, backendDir, "npm install mongodb"); err != nil {
 		return fmt.Errorf("npm install mongodb: %w", err)
 	}
 	if err := execx.RunCmd(ctx, backendDir, "npm install -D @types/mongodb"); err != nil {
-		return fmt.Errorf("npm install dev: %w", err)
-	}
-	clientPath := filepath.Join(backendDir, "src", "db", "client.ts")
-	clientContent, err := fsutil.RenderTemplate("mongodb/db/client.ts.tmpl")
-	if err != nil {
-		return err
+		return fmt.Errorf("npm install @types/mongodb: %w", err)
 	}
 
-	client := fsutil.FileInfo{
-		Path:    clientPath,
-		Content: clientContent,
-	}
+	templateDir := "mongodb/express"
+	outputDir := filepath.Join(backendDir, "src")
 
-	if err := fsutil.WriteFile(client); err != nil {
-		return err
+	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
+		return fmt.Errorf("generate mongodb templates: %w", err)
 	}
 
 	indexPath := filepath.Join(backendDir, "src", "index.ts")
-	indexContent, err := os.ReadFile(indexPath)
+	indexBytes, err := afero.ReadFile(fsutil.Fs, indexPath)
 	if err != nil {
 		return fmt.Errorf("read index.ts: %w", err)
 	}
 
-	src := string(indexContent)
+	src := string(indexBytes)
 
-	// Inject DB import
 	if !strings.Contains(src, "connectDB") {
 		src = strings.Replace(src, "// [DATABASE IMPORT]", `
-		import { connectDB } from "./db/client";`, 1)
+import { connectDB } from "./db/client";`, 1)
 	}
 
-	// Inject route
 	if !strings.Contains(src, "/seed") {
-		route, err := fsutil.RenderTemplate("mongodb/seed.tmpl")
+		route, err := fsutil.RenderTemplate("mongodb/express/seed.tmpl")
 		if err != nil {
 			return fmt.Errorf("render seed route template: %w", err)
 		}
 		src = strings.Replace(src, "// [DATABASE ROUTE]", string(route), 1)
 	}
-	index := fsutil.FileInfo{
+
+	updated := fsutil.FileInfo{
 		Path:    indexPath,
 		Content: []byte(src),
 	}
-	return fsutil.WriteFile(index)
+
+	return fsutil.WriteFile(updated)
 }
 
 func (mongodb) Post(ctx context.Context, opts *Options) error {
 	// gitignorePath := filepath.Join(opts.ProjectRoot, ".gitignore")
 	// if err := fsutil.EnsureFile(gitignorePath); err != nil {
-	// 	return fmt.Errorf("ensure gitignore file: %w", err)
+	//  return fmt.Errorf("ensure gitignore file: %w", err)
 	// }
 
 	// _ = fsutil.AppendUniqueLines(gitignorePath,
-	// 	[]string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
+	//  []string{"backend/node_modules/", "backend/dist/", "backend/.env*"})
 	path := filepath.Join(opts.ProjectRoot, "backend", ".env")
 	// dir := filepath.Dir(path)
 	// if err := os.MkdirAll(dir, 0o755); err != nil {
-	// 	return fmt.Errorf("mkdir %s: %w", dir, err)
+	//  return fmt.Errorf("mkdir %s: %w", dir, err)
 	// }
 	// TODO: Make this not as scuffed lol
-	content := fmt.Sprintf(`
-	MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
+	content := fmt.Sprintf(`MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
 	_ = fsutil.AppendUniqueLines(path, []string{content})
 	return nil
 }

@@ -3,7 +3,6 @@ package nextjs
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/b-jonathan/taco/internal/fsutil"
 	"github.com/b-jonathan/taco/internal/nodepkg"
 	"github.com/b-jonathan/taco/internal/stacks"
+	"github.com/spf13/afero"
 )
 
 type Stack = stacks.Stack
@@ -22,10 +22,10 @@ func New() Stack { return &nextjs{} }
 
 func (nextjs) Type() string { return "frontend" }
 
-func (nextjs) Name() string { return "express" }
+func (nextjs) Name() string { return "nextjs" }
 
 func (nextjs) Init(ctx context.Context, opts *Options) error {
-	if err := os.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(opts.ProjectRoot, 0o755); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 	// 1) Scaffold Next.js in TS, without ESLint, noninteractive
@@ -72,51 +72,23 @@ func (nextjs) Init(ctx context.Context, opts *Options) error {
 
 func (nextjs) Generate(ctx context.Context, opts *Options) error {
 	frontendDir := filepath.Join(opts.ProjectRoot, "frontend")
-	eslintPath := filepath.Join(frontendDir, "eslint.config.mjs")
-	eslintContent, err := fsutil.RenderTemplate("nextjs/eslint.config.mjs.tmpl")
-	if err != nil {
-		return err
-	}
-	eslint := fsutil.FileInfo{
-		Path:    eslintPath,
-		Content: eslintContent,
-	}
-	prettierPath := filepath.Join(frontendDir, ".prettierrc.json")
-	prettierContent, err := fsutil.RenderTemplate("nextjs/.prettierrc.json.tmpl")
-	if err != nil {
-		return err
+
+	templateDir := "nextjs"
+	outputDir := filepath.Join(frontendDir)
+
+	if err := fsutil.GenerateFromTemplateDir(templateDir, outputDir); err != nil {
+		return fmt.Errorf("generate nextjs templates: %w", err)
 	}
 
-	prettier := fsutil.FileInfo{
-		Path:    prettierPath,
-		Content: prettierContent,
-	}
-
-	prettierIgnorePath := filepath.Join(frontendDir, ".prettierignore")
-	prettierIgnoreContent, err := fsutil.RenderTemplate("nextjs/.prettierignore.tmpl")
-	if err != nil {
-		return err
-	}
-
-	prettierIgnore := fsutil.FileInfo{
-		Path:    prettierIgnorePath,
-		Content: prettierIgnoreContent,
-	}
-	files := []fsutil.FileInfo{eslint, prettier, prettierIgnore}
-
-	if err := fsutil.WriteMultipleFiles(files); err != nil {
-		return fmt.Errorf("write files: %w", err)
-	}
 	packageParams := nodepkg.InitPackageParams{
-		Name: "express",
-		Main: "dist/index.js",
+		Name: "nextjs",
 		Scripts: map[string]string{
 			"lint-check": "next lint && prettier --check .",
 			"lint-fix":   "(next lint --fix || true) && prettier --write .",
 		}}
 
 	if err := nodepkg.InitPackage(frontendDir, packageParams); err != nil {
-		return fmt.Errorf("write src/index.ts: %w", err)
+		return fmt.Errorf("init nextjs package.json: %w", err)
 	}
 
 	return nil
@@ -132,27 +104,14 @@ func (nextjs) Post(ctx context.Context, opts *Options) error {
 	}
 
 	dir := filepath.Dir(envPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := fsutil.Fs.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
-	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000	
-		`
-	if err := os.WriteFile(envPath, []byte(content), 0o644); err != nil {
+	content := `NEXT_PUBLIC_BACKEND_URL=http://localhost:4000`
+	if err := afero.WriteFile(fsutil.Fs, envPath, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s: %w", envPath, err)
 	}
-	pagePath := filepath.Join(frontendDir, "src", "app", "page.tsx")
-	pageContent, err := fsutil.RenderTemplate("nextjs/page.tsx.tmpl")
-	if err != nil {
-		return err
-	}
-	page := fsutil.FileInfo{
-		Path:    pagePath,
-		Content: pageContent,
-	}
 
-	if err := fsutil.WriteFile(page); err != nil {
-		return err
-	}
 	return nil
 }
 
