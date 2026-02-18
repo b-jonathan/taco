@@ -84,6 +84,10 @@ func WithFileLock(path string, fn func() error) error {
 	return fn()
 }
 
+func RemoveDir(path string) error {
+	return os.RemoveAll(path)
+}
+
 func RenderTemplate(tmplPath string) ([]byte, error) {
 	data, err := templates.FS.ReadFile(tmplPath)
 	if err != nil {

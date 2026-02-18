@@ -176,3 +176,7 @@ func (firebase) Post(ctx context.Context, opts *Options) error {
 	fmt.Println("Firebase post-generation complete. Added Firebase ignores and credentials.")
 	return nil
 }
+
+func (express) Rollback(ctx context.Context, opts *Options) error {
+	return nil
+}

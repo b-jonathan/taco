@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -196,5 +197,31 @@ func (mongodb) Post(ctx context.Context, opts *Options) error {
 	// TODO: Make this not as scuffed lol
 	content := fmt.Sprintf(`MONGODB_URI=%s/%s`, opts.DatabaseURI, opts.AppName)
 	_ = fsutil.AppendUniqueLines(path, []string{content})
+	return nil
+}
+
+func (mongodb) Rollback(ctx context.Context, opts *Options) error {
+	if opts.DatabaseURI == "" {
+		return nil
+	}
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(opts.DatabaseURI))
+	if err != nil {
+		return fmt.Errorf("connect mongo for rollback: %w", err)
+	}
+	defer func() { _ = client.Disconnect(ctx) }()
+
+	db := client.Database(opts.AppName)
+	col := db.Collection("seed_test")
+
+	if err := col.Drop(ctx); err != nil {
+		var cmdErr mongo.CommandError
+		// Code 26 = NamespaceNotFound (collection doesn't exist) — safe to ignore
+		if errors.As(err, &cmdErr) && cmdErr.Code == 26 {
+			return nil
+		}
+		return fmt.Errorf("drop seed_test collection: %w", err)
+	}
+
+	fmt.Println("Rolled back MongoDB seed data (dropped collection seed_test)")
 	return nil
 }

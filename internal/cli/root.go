@@ -205,6 +205,19 @@ func initCmd() *cobra.Command {
 				Port:        4000,
 			}
 
+			// Rollback logic
+			rollbackNeeded := true
+			defer func() {
+				if !rollbackNeeded {
+					return
+				}
+				log.Println("Init failed, starting rollback...")
+				// use a fresh context for rollback so it isn't canceled
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				rollbackStacks(ctx, opts, frontend, backend, database, auth)
+			}()
+
 			// This is core core
 
 			g, ctx := errgroup.WithContext(rootCtx)
@@ -212,15 +225,15 @@ func initCmd() *cobra.Command {
 			g.Go(func() error { return runSelected(ctx, "Frontend", frontend, opts, []string{"init", "generate"}) })
 			g.Go(func() error { return runSelected(ctx, "Backend", backend, opts, []string{"init", "generate"}) })
 			g.Go(func() error { return runSelected(ctx, "Database", database, opts, []string{"init", "seed"}) })
-			g.Go(func() error { return runSelected(ctx, "Auth", auth, opts, []string{"init"}) })
+			// g.Go(func() error { return runSelected(ctx, "Auth", auth, opts, []string{"init"}) })
 
 			if err := g.Wait(); err != nil {
 				return err
 			}
 
-			if err := runSelected(rootCtx, "Auth", auth, opts, []string{"generate"}); err != nil {
-				return err
-			}
+			// if err := runSelected(rootCtx, "Auth", auth, opts, []string{"generate"}); err != nil {
+			// return err
+			// }
 
 			if err := runSelected(rootCtx, "Database", database, opts, []string{"generate"}); err != nil {
 				return err
@@ -231,9 +244,9 @@ func initCmd() *cobra.Command {
 				if err := runSelected(ctx, "Frontend", frontend, opts, []string{"post"}); err != nil {
 					return err
 				}
-				if err := runSelected(ctx, "Auth", auth, opts, []string{"post"}); err != nil {
-					return err
-				}
+				// if err := runSelected(ctx, "Auth", auth, opts, []string{"post"}); err != nil {
+				// return err
+				// }
 				return nil
 			})
 			g.Go(func() error {
@@ -278,6 +291,39 @@ func initCmd() *cobra.Command {
 					return fmt.Errorf("git push failed: %w", err)
 				}
 
+			// TODO: We're gonna have to add a functionality to "optionally" make github repo
+			// TODO: We're gonna have to add more gh functionality, more on the gh and git package (ci/cd stuff)
+
+			// log.Println("Starting gh command")
+			// client := gh.MustFromContext(cmd.Context())
+			// log.Println("GitHub client initialized")
+			// ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			// defer cancel()
+
+			// newRepo := &github.Repository{
+			// 	Name:        github.String(params.Name),
+			// 	Private:     github.Bool(params.Private),
+			// 	Description: github.String(params.Description),
+			// }
+
+			// repo, _, err := client.Repositories.Create(ctx, "", newRepo)
+			// if err != nil {
+			// 	return fmt.Errorf("create repo: %w", err)
+			// }
+
+			// log.Println(cmd.OutOrStdout(), "Created:", repo.GetHTMLURL())
+			// remoteURL := repo.GetSSHURL()
+			// if params.Remote == "https" {
+			// 	remoteURL = repo.GetCloneURL()
+			// }
+			// log.Println("Committing and Pushing to Github...")
+			// if err := git.InitAndPush(ctx, projectRoot, remoteURL, "chore: initial commit"); err != nil {
+			// 	_, err := client.Repositories.Delete(ctx, "", *newRepo.Name)
+			// 	return err
+			// }
+			// log.Println("Pushed:", repo.GetHTMLURL())
+			rollbackNeeded = false
+			log.Println("Time Taken:", time.Since(start))
 				fmt.Println("Pushed:", repo.GetHTMLURL())
 			}
 
