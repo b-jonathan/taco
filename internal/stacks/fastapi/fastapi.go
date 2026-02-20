@@ -30,7 +30,7 @@ func (fastapi) Init(ctx context.Context, opts *Options) error {
 	}
 
 	// initialize python environment
-	if err := execx.RunCmd(ctx, backendDir, "python -m venv venv"); err != nil {
+	if err := execx.RunCmd(ctx, backendDir, "python3 -m venv venv"); err != nil {
 		return fmt.Errorf("create venv: %w", err)
 	}
 
@@ -52,7 +52,7 @@ func (fastapi) Generate(ctx context.Context, opts *Options) error {
 func (fastapi) Post(ctx context.Context, opts *Options) error {
 	// install dependencies
 	backendDir := filepath.Join(opts.ProjectRoot, "backend")
-	if err := execx.RunCmd(ctx, backendDir, "venv/bin/pip install -r requirements.txt"); err != nil {
+	if err := execx.RunCmd(ctx, backendDir, "venv/bin/python -m pip install -r requirements.txt"); err != nil {
 		return fmt.Errorf("install dependencies: %w", err)
 	}
 
