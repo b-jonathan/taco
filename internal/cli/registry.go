@@ -8,6 +8,7 @@ import (
 	"github.com/b-jonathan/taco/internal/stacks/firebase"
 	"github.com/b-jonathan/taco/internal/stacks/mongodb"
 	"github.com/b-jonathan/taco/internal/stacks/nextjs"
+	"github.com/b-jonathan/taco/internal/stacks/vite"
 )
 
 type Stack = stacks.Stack
@@ -15,6 +16,7 @@ type Stack = stacks.Stack
 var Registry = map[string]Stack{
 	"express":  express.New(),
 	"nextjs":   nextjs.New(),
+	"vite":     vite.New(),
 	"mongodb":  mongodb.New(),
 	"firebase": firebase.New(), // TODO: implement Firebase stack
 	"none":     nil,
