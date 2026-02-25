@@ -23,7 +23,7 @@ lint-fix:
 	@hack/lint-fix.sh
 
 build-all:
-	go build -o npm/bin/taco-windows-amd64.exe ./cmd/taco
+	GOOS=windows GOARCH=amd64 go build -o npm/bin/taco-windows-amd64.exe ./cmd/taco
 	GOOS=darwin GOARCH=amd64 go build -o npm/bin/taco-darwin-amd64 ./cmd/taco
 	GOOS=darwin GOARCH=arm64 go build -o npm/bin/taco-darwin-arm64 ./cmd/taco
 	GOOS=linux GOARCH=amd64 go build -o npm/bin/taco-linux-amd64 ./cmd/taco

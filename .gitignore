@@ -34,3 +34,7 @@ Thumbs.db
 .env.development
 .env.production
 .env.test
+
+# Downloaded binaries in create-taco-app
+packages/create-taco-app/taco
+packages/create-taco-app/taco.exe
