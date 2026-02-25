@@ -1,0 +1,30 @@
+{
+  "name": "create-taco-app",
+  "version": "0.1.0",
+  "description": "Scaffold a full-stack project with Taco CLI",
+  "bin": {
+    "create-taco-app": "create-taco-app.js"
+  },
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  },
+  "files": [
+    "create-taco-app.js",
+    "postinstall.js"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/siddharth-mdk/taco"
+  },
+  "keywords": [
+    "scaffold",
+    "fullstack",
+    "cli",
+    "create",
+    "taco"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
