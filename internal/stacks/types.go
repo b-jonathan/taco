@@ -8,6 +8,7 @@ type Stack interface {
 	Init(ctx context.Context, opts *Options) error
 	Generate(ctx context.Context, opts *Options) error
 	Post(ctx context.Context, opts *Options) error
+	Rollback(ctx context.Context, opts *Options) error
 }
 
 type Seeder interface {
