@@ -4,6 +4,7 @@
 const os = require("os");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const https = require("https");
 const http = require("http");
 
@@ -103,10 +104,34 @@ async function main() {
   );
 
   try {
-    const data = await downloadFile(url);
+    const checksumsUrl = `https://github.com/${REPO}/releases/download/v${VERSION}/checksums.txt`;
+    const [data, checksumsRaw] = await Promise.all([
+      downloadFile(url),
+      downloadFile(checksumsUrl),
+    ]);
+
+    const actualHash = crypto.createHash("sha256").update(data).digest("hex");
+    const checksums = checksumsRaw.toString();
+    const expectedLine = checksums
+      .split("\n")
+      .find((line) => line.includes(binaryName));
+
+    if (!expectedLine) {
+      throw new Error(`No checksum found for ${binaryName} in checksums.txt`);
+    }
+
+    const expectedHash = expectedLine.split(/\s+/)[0];
+    if (actualHash !== expectedHash) {
+      throw new Error(
+        `Checksum mismatch for ${binaryName}\n` +
+          `  expected: ${expectedHash}\n` +
+          `  got:      ${actualHash}`
+      );
+    }
+
     fs.writeFileSync(dest, data);
     fs.chmodSync(dest, 0o755);
-    console.log(`[create-taco-app] Binary installed successfully`);
+    console.log(`[create-taco-app] Binary installed and verified successfully`);
   } catch (err) {
     console.error(
       `[create-taco-app] Failed to download binary: ${err.message}`
