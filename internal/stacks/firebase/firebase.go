@@ -177,6 +177,6 @@ func (firebase) Post(ctx context.Context, opts *Options) error {
 	return nil
 }
 
-func (express) Rollback(ctx context.Context, opts *Options) error {
+func (firebase) Rollback(ctx context.Context, opts *Options) error {
 	return nil
 }

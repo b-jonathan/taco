@@ -214,7 +214,7 @@ func (mongodb) Rollback(ctx context.Context, opts *Options) error {
 	col := db.Collection("seed_test")
 
 	if err := col.Drop(ctx); err != nil {
-		var cmdErr mongo.CommandError
+		var cmdErr *mongo.CommandError
 		// Code 26 = NamespaceNotFound (collection doesn't exist) — safe to ignore
 		if errors.As(err, &cmdErr) && cmdErr.Code == 26 {
 			return nil
