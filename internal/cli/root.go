@@ -205,6 +205,19 @@ func initCmd() *cobra.Command {
 				Port:        4000,
 			}
 
+			// Rollback logic
+			rollbackNeeded := true
+			defer func() {
+				if !rollbackNeeded {
+					return
+				}
+				fmt.Println("Init failed, starting rollback...")
+				// use a fresh context for rollback so it isn't canceled
+				rbCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				rollbackStacks(rbCtx, opts, frontend, backend, database, auth)
+			}()
+
 			// This is core core
 
 			g, ctx := errgroup.WithContext(rootCtx)
@@ -281,6 +294,7 @@ func initCmd() *cobra.Command {
 				fmt.Println("Pushed:", repo.GetHTMLURL())
 			}
 
+			rollbackNeeded = false
 			fmt.Println("Time Taken:", time.Since(start))
 			return nil
 		},
