@@ -198,7 +198,9 @@ func initCmd() *cobra.Command {
 				AppName:     params.Name,
 				Frontend:    stack["frontend"],
 				FrontendURL: "http://localhost:3000",
+				Backend:     stack["backend"],
 				BackendURL:  "http://localhost:4000",
+				Database:    stack["database"],
 				Port:        4000,
 			}
 
