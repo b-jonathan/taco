@@ -7,7 +7,7 @@ const path = require("path");
 const https = require("https");
 const http = require("http");
 
-const REPO = "siddharth-mdk/taco";
+const REPO = "b-jonathan/taco";
 const VERSION = require("./package.json").version;
 const MAX_REDIRECTS = 5;
 
