@@ -167,7 +167,7 @@ func initCmd() *cobra.Command {
 
 			//TODO: We're gonna have to refactor this into a "dependency-style" selection, so only db's supported by chosen backend are seen
 
-			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "None"}, prompt.AskOpts{})
+			stack["frontend"], _ = prompt.CreateSurveySelect("Choose a Frontend Stack:\n", []string{"NextJS", "Vite", "None"}, prompt.AskOpts{})
 			stack["frontend"] = strings.ToLower(stack["frontend"])
 			frontend, err := GetFactory(stack["frontend"])
 			if err != nil {
@@ -187,11 +187,17 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
-			stack["auth"] = strings.ToLower(stack["auth"])
-			auth, err := GetFactory(stack["auth"])
-			if err != nil {
-				return err
+			// Firebase only supports Next.js currently
+			var auth stacks.Stack
+			if stack["frontend"] == "nextjs" {
+				stack["auth"], _ = prompt.CreateSurveySelect("Choose an Auth Stack:\n", []string{"Firebase", "None"}, prompt.AskOpts{})
+				stack["auth"] = strings.ToLower(stack["auth"])
+				auth, err = GetFactory(stack["auth"])
+				if err != nil {
+					return err
+				}
+			} else {
+				stack["auth"] = "none"
 			}
 
 			opts := &stacks.Options{

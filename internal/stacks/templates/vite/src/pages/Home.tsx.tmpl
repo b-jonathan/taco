@@ -1,0 +1,17 @@
+import { useEffect, useState } from "react";
+
+function Home() {
+  const [message, setMessage] = useState<string>("loading...");
+
+  useEffect(() => {
+    fetch(import.meta.env.VITE_BACKEND_URL || "http://localhost:4000/")
+      .then((res) => res.text())
+      .then(setMessage)
+      .catch((err) => setMessage("error: " + err.message));
+  }, []);
+
+  return <div>{message}</div>;
+}
+
+export default Home;
+
