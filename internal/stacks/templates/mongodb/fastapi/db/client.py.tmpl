@@ -1,0 +1,16 @@
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+URI = os.getenv("MONGODB_URI")
+
+if not URI:
+    raise RuntimeError("❌ MONGODB_URI is not set in environment variables")
+
+client = MongoClient(URI)
+
+def get_db():
+    return client.get_database()
+

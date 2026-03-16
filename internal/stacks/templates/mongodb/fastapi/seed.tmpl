@@ -1,0 +1,10 @@
+@app.get("/seed")
+def seed():
+    try:
+        db = get_db()
+        docs = list(db["seed_test"].find({}))
+        for d in docs:
+            d["_id"] = str(d["_id"])
+        return docs
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error")

@@ -174,7 +174,7 @@ func initCmd() *cobra.Command {
 				return err
 			}
 
-			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "None"}, prompt.AskOpts{})
+			stack["backend"], _ = prompt.CreateSurveySelect("Choose a Backend Stack:\n", []string{"Express", "FastAPI", "None"}, prompt.AskOpts{})
 			stack["backend"] = strings.ToLower(stack["backend"])
 			backend, err := GetFactory(stack["backend"])
 			if err != nil {

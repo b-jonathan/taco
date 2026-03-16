@@ -5,6 +5,7 @@ import (
 
 	"github.com/b-jonathan/taco/internal/stacks"
 	"github.com/b-jonathan/taco/internal/stacks/express"
+	"github.com/b-jonathan/taco/internal/stacks/fastapi"
 	"github.com/b-jonathan/taco/internal/stacks/firebase"
 	"github.com/b-jonathan/taco/internal/stacks/mongodb"
 	"github.com/b-jonathan/taco/internal/stacks/nextjs"
@@ -17,6 +18,7 @@ var Registry = map[string]Stack{
 	"nextjs":   nextjs.New(),
 	"mongodb":  mongodb.New(),
 	"firebase": firebase.New(), // TODO: implement Firebase stack
+	"fastapi":  fastapi.New(),
 	"none":     nil,
 }
 
